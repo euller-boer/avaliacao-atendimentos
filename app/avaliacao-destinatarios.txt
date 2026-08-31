@@ -1,0 +1,68 @@
+# ============================================================
+#  DESTINATARIOS DO E-MAIL DA AVALIACAO DE ATENDIMENTOS
+# ============================================================
+#
+# Preencha os e-mails depois do sinal de = , separados por virgula.
+# Linhas que comecam com # sao comentarios (ignoradas).
+# Depois de salvar, nao precisa fazer mais nada: o app le este arquivo
+# toda vez que abre o e-mail.
+#
+# Exemplo:
+#   PADRAO = diretoria@altocon.com.br, gerencia@altocon.com.br
+#
+# ------------------------------------------------------------
+# 1) PADRAO — vale para as DUAS unidades.
+#    Use este se a diretoria for a mesma para Taquaritinga e Monte Alto.
+# ------------------------------------------------------------
+PADRAO =
+
+# ------------------------------------------------------------
+# 2) POR UNIDADE (opcional) — se preencher, TEM PRIORIDADE sobre o PADRAO.
+#    Use se cada unidade tiver destinatarios diferentes.
+#
+#    VIRGULA  = varios destinatarios NO MESMO e-mail (um rascunho so).
+#    PONTO-E-VIRGULA = e-mails SEPARADOS (um rascunho para cada).
+#
+#    Taquaritinga (11/08/2026): UM e-mail so, com os dois no campo "Para" —
+#      Tiago Chueco (diretoriataq) e Leonardo Chueco (rhtaq). Por isso VIRGULA.
+#    Taquaritinga recebe SOMENTE os arquivos de Taquaritinga.
+# ------------------------------------------------------------
+TAQUARITINGA = diretoriataq@altoconcontabilidade.com.br, rhtaq@altoconcontabilidade.com.br
+MONTE ALTO =
+
+# ------------------------------------------------------------
+# 3) POR COORDENADOR — Monte Alto (divisao de 11/08/2026).
+#    Usado pelo "Enviar Avaliacao por Equipe": cada coordenador recebe
+#    um e-mail com o .zip da equipe dele; a linha da DIRETORIA recebe o
+#    pacote consolidado + os zips de todos os coordenadores.
+#    O nome de cada linha e o mesmo que aparece no nome do .zip.
+# ------------------------------------------------------------
+THAINA DE PONTI = rh@altoconcontabilidade.com.br
+DIESLEY QUEIROZ = fiscal9@altoconcontabilidade.com.br
+LAYSA MALAGUTTI = financeiro@altoconcontabilidade.com.br
+MONTE ALTO (DIRETORIA) = diretoria@altoconcontabilidade.com.br
+
+#    NAO_ENVIAR — coordenadores que NAO recebem e-mail, por opcao (separar por virgula).
+#    Diferente de deixar a linha em branco: em branco o rascunho abre com "Para" vazio
+#    e um aviso toda semana; aqui o e-mail simplesmente nao e criado, e o script informa
+#    que foi por escolha. O zip da equipe continua sendo gerado normalmente no Downloads.
+#    Euller Boer (11/08/2026): ve os arquivos direto na propria maquina.
+NAO_ENVIAR = Euller Boer
+
+#    O coordenador abaixo NAO recebe um e-mail separado da propria equipe:
+#    o zip dela ja vai anexado no pacote da diretoria, que e dele. Deixe
+#    esta linha em branco se quiser que ele receba os dois e-mails.
+COORDENADOR_E_DIRETOR = Lucas Malagutti
+
+# ------------------------------------------------------------
+# 4) CC — copia (opcional). Vale para todas as unidades.
+# ------------------------------------------------------------
+CC =
+
+# ============================================================
+#  IMPORTANTE: o e-mail NUNCA e enviado sozinho.
+#  O app so ABRE o rascunho pronto no Thunderbird — quem confere
+#  e clica em "Enviar" e voce.
+#  Se nenhum e-mail estiver preenchido aqui, o rascunho abre com o
+#  campo "Para" VAZIO (para voce digitar na hora) e um aviso.
+# ============================================================

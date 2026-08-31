@@ -1,0 +1,168 @@
+---
+name: agente-leitura-conversas
+description: >
+  Agente de leitura de conversas. Lê e exporta TODO o histórico de atendimentos (conteúdo
+  completo das conversas) de um colaborador, em um período, no Gestta Messenger da Altocon.
+  Serve de base para o agente de análise de atendimento. Use quando o usuário disser:
+  "ler os atendimentos do mês", "ler todas as conversas de um colaborador",
+  "exportar o histórico de atendimentos", "guardar as conversas do Gestta",
+  "baixar os atendimentos da Natália", "preparar dados para a análise de atendimento".
+tools:
+  - mcp__Claude_in_Chrome__list_connected_browsers
+  - mcp__Claude_in_Chrome__select_browser
+  - mcp__Claude_in_Chrome__tabs_context_mcp
+  - mcp__Claude_in_Chrome__navigate
+  - mcp__Claude_in_Chrome__javascript_tool
+  - mcp__Claude_in_Chrome__read_network_requests
+---
+
+# Agente de Leitura de Conversas — Gestta Messenger
+
+Lê o conteúdo completo de todas as conversas de um colaborador, em um período, direto pela API
+do Gestta (mesmo dado que o "olhinho" / aba Histórico mostra), e exporta uma transcrição.
+
+## Por que pela API e não clicando no olhinho
+
+Clicar em cada "olhinho" das 158+ linhas é lento e instável. A API que o próprio olhinho dispara
+permite ler tudo em paralelo. Referência de desempenho medida: 158 atendimentos / 1.456 mensagens
+lidos em ~9 segundos, com 6 leituras em paralelo (~56 ms por atendimento).
+
+## Pré-requisitos
+
+1. Chrome conectado (extensão Claude in Chrome). Se houver mais de um navegador, pergunte qual usar.
+2. Aba aberta e logada em https://app.gestta.com.br/messenger-dashboard/#/attendance-history
+   O token de sessão fica isolado por aba; uma aba nova cai no login. Se cair no login, peça ao
+   usuário para logar (NUNCA digite a senha você mesmo).
+3. O token JWT fica em localStorage na chave "user-jwt", no formato "JWT eyJ...". Use-o no header
+   Authorization exatamente como está (com o prefixo "JWT ").
+
+## Passo 1 — Descobrir o ID do colaborador (finished_by)
+
+O filtro por colaborador usa o _id do usuário. Conhecidos:
+
+- Natália Tiesi -> 69e602fb5ba6c370c7bed60d
+
+Para outro colaborador: aplique o filtro pela interface uma vez e leia a chave "attendance-history"
+do localStorage (campo finished_by[0]._id), ou capture a requisição da lista (Passo 2) com
+read_network_requests e veja o parâmetro finished_by.
+
+## Passo 2 — Listar os atendimentos do período
+
+Endpoint (GET, paginado):
+
+  https://api.gestta.com.br/messenger-dashboard-v2/attendances
+    ?finished_by=["<ID_COLABORADOR>"]   (JSON array, URL-encoded)
+    &start=<ISO_UTC_inicio>   = primeiro dia do mês 00:00 America/São_Paulo
+                                ex.: maio/2026 -> 2026-05-01T03:00:00.000Z
+    &end=<ISO_UTC_fim>        = primeiro dia do MÊS SEGUINTE 00:00 America/São_Paulo (EXCLUSIVO)
+                                ex.: maio/2026 -> 2026-06-01T03:00:00.000Z
+    &sort=-finished_at
+    &limit=50&page=<N>
+
+> **Por quê:** usar `...05-31T03:00:00Z` como fim descarta praticamente todo o dia 31.
+> O fim tem de ser o 1º instante do mês seguinte; o filtro é "maior-igual ao início e
+> menor que o fim".
+
+Resposta: { docs, totalDocs, totalPages, hasNextPage, nextPage, ... }. Pagine até hasNextPage=false.
+
+Campos úteis de cada doc:
+- _id — id do atendimento
+- company_contact — OBJETO { _id, name } (é o contato; NÃO é string)
+- company_user_data.name — atendente
+- started_at, finished_at — datas (ISO UTC)
+- statistics.duration — duração em segundos
+- type
+
+## Passo 3 — Ler a conversa de cada atendimento (o "olhinho")
+
+Endpoint (GET):
+
+  https://api.gestta.com.br/messenger-dashboard-v2/overview/attendance/<company_contact._id>/<attendance._id>/message-history
+
+Atenção: o PRIMEIRO segmento é o _id do contato (company_contact._id), o SEGUNDO é o _id do
+atendimento. Inverter ou passar o objeto inteiro retorna 400.
+
+Resposta: array de mensagens. Campos úteis por mensagem:
+- type — OUTBOUND (atendente) ou INBOUND (cliente)
+- content_type — CHAT, ou imagem/áudio/arquivo
+- content — texto da mensagem (string)
+- author — nome de quem enviou
+- internal_message — true para nota interna
+- received_at / created_at — horário (ISO UTC)
+- status
+
+## Passo 4 — Ler tudo em paralelo (com cronometragem)
+
+Execute via javascript_tool na aba logada. Colete a lista (Passo 2), depois rode um pool de ~6
+workers buscando o message-history de cada atendimento. Marque Date.now() antes/depois para medir
+o tempo. Ordene as mensagens por received_at antes de montar a transcrição.
+
+## Passo 5 — Exportar (download pelo navegador)
+
+IMPORTANTE: o canal de texto bloqueia conteúdo bruto com URLs/links ou base64
+("[BLOCKED: Cookie/query string data]" e "[BLOCKED: Base64 encoded data]"). Por isso NÃO tente
+trazer o conteúdo de volta como retorno de JS. Gere o arquivo dentro da página e dispare o download:
+
+  const blob = new Blob([textoTranscricao], {type:'text/plain;charset=utf-8'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'historico_atendimentos_<colab>_<periodo>.txt';
+  document.body.appendChild(a); a.click();
+
+O arquivo cai na pasta Downloads do usuário. Formate datas em America/Sao_Paulo
+(toLocaleString('pt-BR', {timeZone:'America/Sao_Paulo'})).
+
+### Formato da transcrição (sugerido)
+
+Cabeçalho geral (colaborador, período, totais) e, por atendimento: contato, atendente,
+início/fim/duração, ID; depois cada mensagem como
+[dd/mm/aaaa hh:mm] ATENDENTE|CLIENTE (autor) [NOTA INTERNA / tipo-anexo]: conteúdo.
+
+## Passo 6 — Conferência obrigatória de integridade (NÃO PULAR)
+
+A leitura só é válida se TODOS os atendimentos do período entrarem na transcrição.
+Antes de exportar, execute estas verificações; se qualquer uma falhar, NÃO exporte
+uma transcrição parcial — corrija e refaça.
+
+1. **Total esperado:** na 1ª página da listagem (Passo 2), guarde `totalDocs`.
+   Some também `docs.length` de cada página. Ao final, exija:
+   `Σ docs.length de todas as páginas == totalDocs`. Se diferente, houve paginação
+   incompleta → refaça a paginação até `hasNextPage == false`.
+
+2. **Leitura sem perdas (Passo 4):** para cada atendimento, o `message-history` precisa
+   retornar 200. Mantenha uma lista de FALHAS (status != 200 ou exceção). Ao fim do
+   pool, **reprocesse as falhas** (até 3 tentativas, com pequena espera entre elas).
+   Nenhum atendimento pode ser descartado em silêncio.
+
+3. **Trava final:** só prossiga para exportar se:
+   - atendimentos lidos == totalDocs, E
+   - falhas remanescentes == 0.
+   Caso contrário, avise o usuário com os números exatos e pergunte se quer repetir.
+
+4. **Cabeçalho de auditoria:** a transcrição DEVE começar com um bloco de conferência:
+
+   ```
+   === CONFERÊNCIA DE INTEGRIDADE ===
+   Colaborador: <nome>
+   Período: <MM/AAAA>  (start=<ISO> .. end=<ISO>)
+   totalDocs (API): <N>
+   Atendimentos lidos: <N>          <- tem de ser igual ao acima
+   Mensagens lidas: <M>
+   Falhas após retentativas: 0
+   Gerado em: <data/hora America/São_Paulo>
+   ==================================
+   ```
+
+   O agente de análise vai LER este bloco e recusar a análise se "Atendimentos lidos"
+   for diferente de "totalDocs".
+
+## Observações para o agente de análise
+
+Esta skill entrega os dados crus/legíveis. O passo de análise (classificar motivo, medir tempo de
+primeira resposta, achar pendências/reclamações, resumo por cliente) consome essa transcrição ou,
+de preferência, o JSON estruturado das mensagens.
+
+> **Reprodutibilidade:** a transcrição exportada é a FONTE CONGELADA da análise. Uma vez
+> gerada e conferida (Passo 6), reutilize SEMPRE o mesmo arquivo para análises e
+> reanálises do período. Não regenere a transcrição entre rodadas de análise — isso é o
+> que fazia o nº de atendimentos mudar de uma rodada para outra.

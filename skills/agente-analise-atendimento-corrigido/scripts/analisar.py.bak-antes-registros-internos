@@ -1,0 +1,1149 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+analisar.py — PIPELINE DETERMINÍSTICO COMPLETO da análise de atendimentos.
+
+Por que este script existe
+--------------------------
+As rodadas divergiam porque os critérios qualitativos (2 a 8) eram pontuados
+por julgamento do modelo — cada execução "achava" uma nota. Diagnóstico da
+comparação de duas rodadas de junho/2026: os 2 critérios calculados por script
+(SLA e Escrita) bateram 100%; TODOS os demais divergiram em até 2 pontos.
+
+Solução: TODA nota, contagem, justificativa e texto do relatório sai deste
+script, calculado sobre a transcrição congelada. O modelo não pontua nada.
+Mesma transcrição -> mesmos JSONs, byte a byte -> mesmos relatórios.
+
+Uso
+---
+    python3 scripts/analisar.py <transcricao.txt> <dir_saida>
+
+Saída: <dir_saida>/analise_<Colab>.json (um por colaborador),
+       <dir_saida>/resumo_equipe.json e uma tabela de conferência no stdout.
+A identidade (nomes e totais) vem VERBATIM do bloco de CONFERÊNCIA DE
+INTEGRIDADE da transcrição — inclusive nomes unificados (mesmo usuário com
+nome alterado, ex.: "Eduarda Borges / Maria Eduarda"). Se o bloco estiver
+ausente ou com "lidos" != totalDocs, o script ABORTA.
+"""
+import json, re, sys, os
+from datetime import datetime
+
+# ---------------------------------------------------------------- constantes
+CRIT = ["Tempo de Início do Atendimento (SLA)",
+        "Gestão de Prazos e Comunicação Assertiva",
+        "Empatia e Escuta Ativa",
+        "Clareza, Orientação Técnica e Uso de Canais",
+        "Transparência, Sinceridade e Tratamento de Erros",
+        "Postura Contínua e Soluções Definitivas",
+        "Ética e Transparência Sempre",
+        "Transformar o \"Não\" em Busca por Soluções",
+        "Coerência na Escrita, Gírias e Informalidades"]
+PESO = [16.5, 8.5, 11.11, 11.11, 8.5, 16.5, 8.5, 11.11, 8.5]
+PESO_S = ["16,5%", "8,5%", "11,11%", "11,11%", "8,5%", "16,5%", "8,5%", "11,11%", "8,5%"]
+
+SLA_TABELA = [(98.0, 10.0), (95.0, 9.5), (90.0, 9.0), (85.0, 8.5), (80.0, 8.0),
+              (75.0, 7.5), (70.0, 7.0), (60.0, 6.0), (50.0, 5.0), (40.0, 4.0), (0.0, 3.0)]
+GIRIAS_TABELA = [(0.0, 10.0), (0.5, 9.0), (1.0, 8.0), (2.0, 7.0), (4.0, 6.0), (7.0, 5.0), (float("inf"), 4.0)]
+GIRIAS = [r"vc", r"vcs", r"voce", r"pra", r"pro", r"pq", r"q", r"k{2,}", r"rs+", r"kk+",
+          r"hh+", r"blz", r"vlw", r"flw", r"obg", r"pfv", r"pf", r"tbm", r"tb", r"qdo",
+          r"qto", r"msg", r"to", r"ta", r"tava", r"neh", r"ne", r"aki", r"vamo", r"oki"]
+GIRIA_RE = re.compile(r"\b(" + "|".join(GIRIAS) + r")\b", re.IGNORECASE)
+
+# REGRA SLA (opcao b, coordenacao 14/07/2026): o cronometro para apenas na 1a
+# mensagem do PROPRIO colaborador avaliado — resposta da recepcao/triagem nao
+# encerra a contagem. Autores com nome alterado no mes sao unificados via alias.
+ALIAS_AUTOR = {"MARIA EDUARDA": "EDUARDA BORGES"}
+def autor_eh(nm, autor):
+    a = (autor or "").strip().upper()
+    a = ALIAS_AUTOR.get(a, a)
+    return a == nm.upper()
+
+VAGO = re.compile(r"\b(vou verificar|vou analisar|vou ver|vou olhar|vou checar|assim que poss[ií]vel|qualquer coisa (te )?aviso|mais tarde te (falo|aviso))\b", re.I)
+PRAZO = re.compile(r"\b(dias? [úu]te(is|l)|at[ée] (o dia |amanh[ãa]|hoje|sexta|segunda|ter[çc]a|quarta|quinta)|amanh[ãa]|hoje (ainda|mesmo)|\d{1,2}/\d{1,2}|em \d+ ?(h|horas|min|dia))\b", re.I)
+EMPATIA = re.compile(r"\b(bom dia|boa tarde|boa noite|tudo bem|entendo|compreendo|imagino|fica tranquil|pode deixar|vou te ajudar|conte comigo|por favor|obrigad|disponha|[àa] disposi[çc][ãa]o|precisando)\b", re.I)
+NEG_SECA = re.compile(r"\b(n[ãa]o (fazemos|tem como|[ée] poss[íi]vel|conseguimos|posso te ajudar com isso|atendemos))\b", re.I)
+# Formas condicionais e interrogativas NAO sao recusa: "se nao der certo me avisa",
+# "caso nao de certo tente...", "nao da para identificar?". Achado real de julho/2026
+# (Monte Alto): 20 das 82 mensagens com "nao" eram oferta de ajuda ou pergunta.
+NEG_COND = re.compile(r"\b(se n[ãa]o|sen[ãa]o|caso n[ãa]o)\b", re.I)
+# Lista de ALTERNATIVA ampliada a partir de como a equipe realmente escreve
+# (achado real de julho/2026): "sera necessario comparecer ao cartorio", "precisara
+# entrar em contato com o contador", "seria diretamente com eles", "tente...".
+ALTERNATIVA = re.compile(r"\b(alternativa|outra op[çc][ãa]o|posso (sugerir|indicar|te ligar)|"
+                         r"vou (consultar|verificar com) (o|a|outro)|parceiro|indica[çc][ãa]o|sugest[ãa]o|"
+                         r"o que podemos fazer|(ser[áa]|[ée]|vai ser) necess[áa]rio|precisar[áa]|"
+                         r"entrar em contato com|comparecer|procurar (o|a|diretamente)|"
+                         r"(seria|ser[áa]) diretamente|diretamente (com|ao|na|no)|"
+                         r"o que (eu )?(consigo|posso) (fazer|verificar|te passar)|tente|me avisa que|"
+                         r"providenciamos|sugiro|recomendo|encaminh(o|ar|amos) para|vou passar para|"
+                         r"solicite|pe[çc]o que)\b", re.I)
+# Base minima do criterio 8 (coordenacao 07/08/2026): abaixo disso a nota oscilaria
+# demais com um unico caso lido de outro jeito — o criterio sai como "Nao avaliado"
+# e seu peso e redistribuido entre os demais (linha do calculo de `sw`).
+MIN_BASE_C8 = 3
+
+
+def achar_negativa(txt):
+    """Devolve o trecho da negativa de RECUSA, ou None. Ignora oracao condicional
+    ("se nao der certo me avisa") e pergunta ("nao da para identificar?")."""
+    toks = re.split(r"([.!?\n]+)", txt)
+    for i in range(0, len(toks), 2):
+        frase = toks[i]
+        delim = toks[i + 1] if i + 1 < len(toks) else ""
+        m = NEG_SECA.search(frase)
+        if not m or NEG_COND.search(frase) or "?" in delim:
+            continue
+        return m.group(0)
+    return None
+TRANSFER = re.compile(r"\b(vou (te )?transferir|transferindo|vou encaminhar|encaminhando|vou passar (para|pro|pra)|setor respons[áa]vel)\b", re.I)
+LEI = re.compile(r"\b(art\.? ?\d+|artigo \d+|lei n|LC \d|par[áa]grafo|inciso)\b", re.I)
+ERRO = re.compile(r"\b(desculp\w*|foi (um )?(erro|equ[íi]voco|falha) (noss|meu|minh)\w*|me equivoquei|nos equivocamos|erramos|corrigir[ei]mos|vou corrigir|pe[çc]o desculpas|perd[ãa]o pel)\b", re.I)
+
+# REGUA DE EXPEDIENTE (coordenacao 14/07/2026): o cronometro do SLA conta
+# apenas minutos uteis — 07:30 as 18:00, segunda a sexta, feriados nacionais
+# descontados. Limite do manual: 120 minutos UTEIS.
+EXP_INI = (7, 30)
+EXP_FIM = (18, 0)
+FERIADOS = {"01/01/2026", "16/02/2026", "17/02/2026", "03/04/2026", "21/04/2026",
+            "01/05/2026", "04/06/2026", "07/09/2026", "12/10/2026", "02/11/2026",
+            "15/11/2026", "20/11/2026", "25/12/2026"}
+def _dia_util(d):
+    return d.weekday() < 5 and d.strftime("%d/%m/%Y") not in FERIADOS
+def minutos_uteis(a, b):
+    from datetime import timedelta
+    if b <= a: return 0.0
+    tot = 0.0
+    d = a.replace(hour=0, minute=0, second=0, microsecond=0)
+    while d <= b:
+        if _dia_util(d):
+            ini = d.replace(hour=EXP_INI[0], minute=EXP_INI[1])
+            fim = d.replace(hour=EXP_FIM[0], minute=EXP_FIM[1])
+            lo = max(a, ini); hi = min(b, fim)
+            if hi > lo: tot += (hi - lo).total_seconds() / 60
+        d += timedelta(days=1)
+    return tot
+
+MSG_RE = re.compile(r"^\[(\d{2}/\d{2}/\d{4}), (\d{2}:\d{2}:\d{2})\] (ATENDENTE|CLIENTE)(?: \((.*?)\))?(?: \[([^\]]+)\])?: (.*)$")
+COLAB_RE = re.compile(r"^### COLABORADOR: (.+)$")
+ATT_RE = re.compile(r"^=== Atendimento (\d+)/(\d+) \| ID: (\S+) ===$")
+TRANSF_RE = re.compile(r"^Transferência: SIM em (\d{2}/\d{2}/\d{4}), (\d{2}:\d{2}:\d{2})$")
+MESES = {1: "Janeiro", 2: "Fevereiro", 3: "Março", 4: "Abril", 5: "Maio", 6: "Junho",
+         7: "Julho", 8: "Agosto", 9: "Setembro", 10: "Outubro", 11: "Novembro", 12: "Dezembro"}
+
+# ACOMPANHAMENTO SEM NOTA (coordenação 08/08/2026) -----------------------------
+# Semana e dia deixaram de receber nota. Motivo: com amostra de poucos dias a nota vira ruído
+# (achado real da semana 03–09/08/2026, Monte Alto — Graziele Anselmo tirou 3,0 com UM único
+# atendimento e derrubou a média da unidade de 8,6 para 8,4). O acompanhamento passa a ser um
+# LEVANTAMENTO: mesmos 9 critérios, mesmas contagens e os mesmos exemplos reais, sem nota,
+# sem média e sem ranking. A nota formal sai só na avaliação MENSAL.
+# Implementação: `analisar.py` calcula tudo como sempre (as notas ainda ordenam internamente o
+# que entra em pontos fortes / pontos de atenção), mas o JSON de saída de período não-mensal
+# NÃO carrega nota alguma — assim é impossível um número vazar para o .docx.
+AVISO_ACOMP = ("ATENÇÃO — LEVANTAMENTO DE ACOMPANHAMENTO: o período analisado não é um mês fechado. "
+               "A amostra é reduzida, portanto este documento NÃO atribui nota: ele levanta o que os "
+               "atendimentos do período mostram em cada critério. A avaliação formal, com nota, é a mensal.")
+
+def _sem_nota(s):
+    """Reescreve as frases que falam em nota/peso para o texto de acompanhamento.
+
+    Substituições completas e literais de propósito: um replace genérico de "nota" quebraria
+    "nota de sistema" (o carimbo `Atendimento transferido por X para Y`) e "NOTA INTERNA".
+    """
+    if not s:
+        return s
+    for de, para in (
+        ("Não avaliado — ", "Sem caso aplicável — "),
+        ("portanto o critério não pôde ser avaliado", "portanto o critério ficou sem caso no período"),
+        ("que define o teto da nota", "que é o indicador do critério"),
+        ("Erros do cliente que exigiram retificação não afetaram esta nota.",
+         "Erros do cliente que exigiram retificação não entram nesta contagem."),
+        ("Com base tão pequena, um único caso lido de outra forma moveria "
+         "a nota em vários pontos, portanto o critério não foi avaliado e seu peso foi "
+         "redistribuído entre os demais critérios.",
+         "Com base tão pequena, um único caso lido de outra forma mudaria bastante a leitura, "
+         "portanto o critério fica sem conclusão neste acompanhamento."),
+        ("os dois ajustes de maior impacto na nota", "os dois ajustes de maior impacto no atendimento"),
+    ):
+        s = s.replace(de, para)
+    return s
+
+def fmt(x): return f"{x:.1f}".replace(".", ",")
+def fmt_na(x): return "—" if x is None else fmt(x)
+def pf(x): return str(round(x)) + "%"
+def corta_trecho(t, n=160):
+    t = " ".join((t or "").split())
+    return t if len(t) <= n else t[:n - 1].rstrip() + "…"
+def _ex(contato, dt, tx, termo=None):
+    e = {"cliente": contato or "—", "data": dt.strftime("%d/%m/%Y"),
+         "hora": dt.strftime("%Hh%M"), "trecho": corta_trecho(tx)}
+    if termo: e["termos"] = termo
+    return e
+def nota_desc(t, tabela):
+    for lim, n in tabela:
+        if t >= lim: return n
+    return tabela[-1][1]
+def teto_cres(t, tabela):
+    for lim, n in tabela:
+        if t <= lim: return n
+    return tabela[-1][1]
+
+# ---------------------------------------------------------------- cabeçalho
+def ler_cabecalho(lines):
+    head = "\n".join(lines[:40])
+    if "=== CONFERÊNCIA DE INTEGRIDADE ===" not in head:
+        sys.exit("ERRO: bloco de CONFERÊNCIA DE INTEGRIDADE ausente. Gere a transcrição com o agente-leitura-conversas.")
+    def g(rx, cast=str):
+        m = re.search(rx, head)
+        return cast(m.group(1)) if m else None
+    total_api = g(r"totalDocs[^:]*: (\d+)", int)
+    lidos = g(r"Atendimentos lidos: (\d+)", int)
+    falhas = g(r"Falhas ap[óo]s retentativas: (\d+)", int)
+    if total_api is None or lidos is None or lidos != total_api or (falhas or 0) != 0:
+        sys.exit(f"ERRO: base incompleta (lidos={lidos}, totalDocs={total_api}, falhas={falhas}). NÃO analise base parcial; rode o agente-leitura-conversas novamente.")
+    # Período aceita 3 formatos: MM/AAAA (mês), DD/MM/AAAA (dia) e DD/MM/AAAA a DD/MM/AAAA (semana/intervalo)
+    m_per = re.search(r"Per[íi]odo: *([^\n]+)", head)
+    per_raw = m_per.group(1).strip() if m_per else ""
+    tipo, plabel, pfrase, pnome = "mes", "?/?", "em ?", "?"
+    m_r = re.match(r"^(\d{2}/\d{2}/\d{4})\s+a\s+(\d{2}/\d{2}/\d{4})$", per_raw)
+    m_d = re.match(r"^(\d{2}/\d{2}/\d{4})$", per_raw)
+    m_m = re.match(r"^(\d{2})/(\d{4})$", per_raw)
+    if m_r:
+        ini, fim = m_r.group(1), m_r.group(2)
+        tipo = "intervalo"; plabel = f"{ini} a {fim}"
+        pfrase = f"no período de {ini} a {fim}"; pnome = f"o período de {ini} a {fim}"
+    elif m_d:
+        dia = m_d.group(1)
+        tipo = "dia"; plabel = dia
+        pfrase = f"no dia {dia}"; pnome = f"o dia {dia}"
+    elif m_m:
+        mes, ano = int(m_m.group(1)), m_m.group(2)
+        tipo = "mes"; plabel = f"{MESES.get(mes,'?')}/{ano}"
+        pfrase = f"em {plabel.lower()}"; pnome = plabel.lower()
+    unid = g(r"equipe ([^—\n)]+)")
+    if unid: unid = unid.strip()
+    ger = g(r"Gerado em: (\d{2}/\d{2}/\d{4})")
+    tot_map, msg_map = {}, {}
+    for ln in lines[:60]:
+        m = re.match(r"^(.+?): (\d+) atendimentos, (\d+) mensagens$", ln)
+        if m:
+            tot_map[m.group(1)] = int(m.group(2)); msg_map[m.group(1)] = int(m.group(3))
+    # Inicio do periodo como datetime — usado pela regra de CORTE dos DESLIGADOS.
+    # Mes fechado conta a partir do dia 1; intervalo e dia contam a partir da data informada.
+    p_ini = None
+    try:
+        if m_r:
+            p_ini = datetime.strptime(m_r.group(1), "%d/%m/%Y")
+        elif m_d:
+            p_ini = datetime.strptime(m_d.group(1), "%d/%m/%Y")
+        elif m_m:
+            p_ini = datetime(int(m_m.group(2)), int(m_m.group(1)), 1)
+    except ValueError:
+        p_ini = None
+    return {"total_api": total_api, "periodo_label_base": plabel, "periodo_ini": p_ini,
+            "periodo_tipo": tipo, "periodo_frase": pfrase,
+            "periodo_frase_cap": (pfrase[0].upper() + pfrase[1:]) if pfrase else "",
+            "periodo_nome": pnome,
+            "unidade": (unid or "").strip(), "data_geracao": ger or "",
+            "tot_map": tot_map, "msg_map": msg_map}
+
+# ---------------------------------------------------------------- parser
+def parse(lines, tot_map):
+    name_map = {n.upper(): n for n in tot_map}
+    colabs, cur_c, cur_a, cur_m = {}, None, None, None
+    def fm():
+        nonlocal cur_m
+        if cur_m is not None and cur_a is not None: cur_a["mensagens"].append(cur_m)
+        cur_m = None
+    def fa():
+        nonlocal cur_a
+        fm()
+        if cur_a is not None and cur_c is not None: colabs[cur_c].append(cur_a)
+        cur_a = None
+    for ln in lines:
+        m = COLAB_RE.match(ln)
+        if m:
+            fa(); nm = name_map.get(m.group(1).strip())
+            if nm is None:
+                sys.exit(f"ERRO: seção de colaborador '{m.group(1).strip()}' não consta no bloco de integridade. Nomes NUNCA são inventados/renomeados.")
+            cur_c = nm; colabs.setdefault(nm, []); continue
+        m = ATT_RE.match(ln)
+        if m:
+            fa(); cur_a = {"id": m.group(3), "mensagens": [], "transfer_dt": None, "contato": ""}; continue
+        if cur_a is not None and cur_m is None and ln.startswith("Contato:"):
+            cur_a["contato"] = ln.split(":", 1)[1].strip(); continue
+        m = TRANSF_RE.match(ln)
+        if m and cur_a is not None:
+            cur_a["transfer_dt"] = datetime.strptime(m.group(1) + " " + m.group(2), "%d/%m/%Y %H:%M:%S")
+            continue
+        m = MSG_RE.match(ln)
+        if m:
+            fm()
+            tags = m.group(5) or ""
+            cur_m = {"dir": "OUT" if m.group(3) == "ATENDENTE" else "IN",
+                     "interna": "NOTA INTERNA" in tags, "autor": (m.group(4) or "").strip(),
+                     "dt": datetime.strptime(m.group(1) + " " + m.group(2), "%d/%m/%Y %H:%M:%S"),
+                     "texto": m.group(6)}
+            continue
+        if cur_m is not None and not ln.startswith(("===", "###", "---")):
+            cur_m["texto"] += "\n" + ln
+    fa()
+    return colabs
+
+# REGRA CRITÉRIO 6 (coordenação 05/08/2026): a transcrição atribui cada
+# atendimento ao colaborador que ficou com ele por ÚLTIMO — quando alguém
+# repassa, o atendimento (e as mensagens que essa pessoa mandou antes de
+# repassar) somem da própria seção dela e passam a contar inteiramente para
+# quem recebeu. Isso deixava invisível quase todo repasse de quem transfere
+# muito (ex.: achado real de julho/2026 — Laysa Malagutti: só 3 de 1.003
+# repasses reais apareciam na própria seção dela). Por isso escaneamos a
+# transcrição inteira atrás da nota de sistema "Atendimento transferido por
+# X para Y" (carimbo do Gestta, não é frase digitada) e credita o repasse a
+# X onde quer que o atendimento tenha ficado registrado.
+# PAPEL DE TRIAGEM (coordenação 05/08/2026): colaboradores cuja função é RECEBER e
+# DIRECIONAR o chamado para o setor certo — não "resolver" o assunto. Pra esse papel o
+# critério 6 não pode medir "resolveu sem repassar" (repassar É a função); mede se o
+# direcionamento foi rápido e certo — ou seja, se quem recebeu não precisou corrigir a
+# rota logo em seguida. Achado real de julho/2026 (Laysa Malagutti): 962 dos 1.003
+# repasses foram direcionamento puro (zero mensagem própria antes) e ZERO tiveram outro
+# repasse do mesmo atendimento nas 24h seguintes — nenhum sinal de rota errada.
+# Extensão: adicionar o nome (MAIÚSCULO) aqui quando outro colaborador tiver essa função.
+# Ana Chueco incluída em 10/08/2026 (coordenação): também faz recebimento e direcionamento
+# de chamados em Taquaritinga, então os repasses dela são a função, não falta de
+# resolutividade — pela regra comum ela levava 7,0 em julho/2026 (69% "sem repasse").
+# Katariny de Simone incluída em 15/08/2026 (coordenação): entrou nesta semana em Monte Alto,
+# na equipe da Laysa (Suporte/Atendimento), com a MESMA função de receber e direcionar — por
+# isso a regra da Laysa vale pra ela desde o primeiro mês. Ainda sem histórico avaliado; se o
+# nome no Gestta vier diferente de "Katariny de Simone", ajustar aqui (o casamento é por nome).
+PAPEL_TRIAGEM = {"LAYSA MALAGUTTI", "ANA CHUECO", "KATARINY DE SIMONE"}
+TRIAGEM_JANELA_REBOTE_MIN = 24 * 60  # janela p/ considerar que o destino corrigiu a rota
+
+# ---------------------------------------------------------------- equipes
+# Divisão por coordenador (coordenação 11/08/2026). Cada coordenador recebe o resumo da
+# PRÓPRIA equipe, e a nota dele entra na lista junto com a da equipe. O diretor recebe o
+# pacote consolidado da unidade inteira (`resumo_equipe.json`), que continua sendo gerado
+# igual — por isso os pacotes já entregues não mudam.
+#
+# Média geral, ranking e médias por critério continuam sendo da UNIDADE INTEIRA (decisão da
+# coordenação em 11/08/2026): o coordenador vê onde sua equipe está dentro de Monte Alto, e
+# os números seguem comparáveis com os pacotes anteriores. Só a LISTA de pessoas é recortada.
+#
+# Nomes em MAIÚSCULO, iguais ao bloco de integridade. Unidade sem divisão declarada aqui
+# (ex.: Taquaritinga, que é pequena) segue com pacote único de unidade — nada muda para ela.
+EQUIPES = {
+    "Monte Alto": [
+        # Eduarda ("Duda") Zucchi VOLTOU para a equipe do Lucas em 24/08/2026, agora no
+        # Contabil. Com a saida dela o departamento desta equipe deixou de ser
+        # "Pessoal/Onboarding" e voltou a ser so "Departamento Pessoal": o "/Onboarding"
+        # existia exatamente porque ela fazia onboarding aqui (confirmado com o usuario).
+        # Graziela dos Anjos desligou-se em 24/08/2026: sai das avaliacoes por completo, como
+        # a Graziele Anselmo. Tirada daqui para nao virar AVISO de "declarada mas ausente da
+        # transcricao" em toda rodada. Ver DESLIGADOS logo abaixo.
+        {"coordenador": "THAINA DE PONTI", "departamento": "Departamento Pessoal",
+         "membros": ["EDUARDA BORGES"]},
+        {"coordenador": "EULLER BOER", "departamento": "Departamento Pessoal",
+         "membros": ["JENIFER GARCIA", "GABRIELA ROSSI"]},
+        {"coordenador": "DIESLEY QUEIROZ", "departamento": "Fiscal/Contábil",
+         "membros": ["STEPHANIE FERRAZ", "BIANCA ALVES", "JAIRO RAVASI", "MIGUEL MALAGUTTI",
+                     "YASMIN RODRIGUES", "CARLA SEGHESSI", "EDUARDA STEFANI", "JULIA MATHIAS",
+                     "NATÁLIA SANTOS", "SOPHIA MAGRI", "BEATRIZ PAPA"]},
+        # Katariny de Simone entrou em 15/08/2026 na triagem (mesma função da Laysa).
+        {"coordenador": "LAYSA MALAGUTTI", "departamento": "Suporte/Atendimento",
+         "membros": ["FLAVIO ROSATO", "KATARINY DE SIMONE"]},
+        # Diretor: recebe a própria equipe E o consolidado da unidade inteira.
+        #
+        # Histórico do departamento desta equipe (não simplificar sem o usuário confirmar):
+        #   - era "Legal e Financeiro", com Ricardo Buzeto + Eduarda Zucchi;
+        #   - virou só "Legal" em 11/08/2026, quando ela passou para a equipe da Thaina;
+        #   - voltou a ser misto em 24/08/2026, quando ela retornou — agora no CONTÁBIL,
+        #     não mais no Financeiro. Por isso "Legal e Contábil": o Ricardo segue no Legal.
+        #
+        # ATENÇÃO: este "Contábil" não é o mesmo da equipe do Diesley ("Fiscal/Contábil").
+        # São equipes diferentes; não junte as duas por causa do nome parecido.
+        # `depto_membro` volta a ser preenchido porque a equipe voltou a ser MISTA: sem ele o
+        # documento diria só "Legal e Contábil" no topo, sem dizer quem é de qual. É o mesmo
+        # recurso que existia no tempo do "Legal e Financeiro" (build_team_summary.py imprime
+        # "Departamentos da equipe: ..."). Chaves em MAIÚSCULO, iguais ao bloco de integridade.
+        # Lucas Malagutti não entra aqui: o departamento DELE nunca foi informado, e inventar
+        # um rótulo num documento que avalia pessoas não é opção — quem não está no dict
+        # simplesmente não aparece nessa linha.
+        {"coordenador": "LUCAS MALAGUTTI", "departamento": "Legal e Contábil",
+         "membros": ["RICARDO BUZETO", "EDUARDA ZUCCHI"], "diretor": True,
+         "depto_membro": {"RICARDO BUZETO": "Legal", "EDUARDA ZUCCHI": "Contábil"}},
+    ],
+}
+
+
+# ------------------------------------------------------------- desligados
+# Quem saiu do escritorio e NAO entra em avaliacao nenhuma - nem no consolidado da unidade -
+# mesmo que ainda apareca como operador no Gestta com atendimentos no periodo.
+#
+# A exclusao de verdade acontece no PASSO 2 do agente-leitura-conversas(-corrigido): o nome
+# nao e marcado, entao nao entra na transcricao nem no bloco de integridade. Esse e o unico
+# ponto onde da para tirar alguem sem quebrar a trava de contagem daqui - editar a transcricao
+# ja pronta faz ler_cabecalho()/parse() abortarem.
+#
+# A lista abaixo e a REDE DE SEGURANCA: se a leitura esquecer de excluir, o console avisa em
+# destaque, em vez de a pessoa entrar calada na media e no ranking da unidade.
+#
+# ATENCAO: Graziele Anselmo e Graziela dos Anjos sao DUAS PESSOAS DIFERENTES.
+# Nomes em MAIUSCULO, iguais ao bloco de integridade.
+#
+# Cada pessoa tem uma REGRA, e as duas nao sao a mesma coisa:
+#
+#   "total" - sai de TODA avaliacao, inclusive de periodos em que ainda tinha atendimento.
+#             Foi a decisao do usuario para a Graziele Anselmo e a Graziela dos Anjos.
+#
+#   "corte" - o que ela(e) fez ATE a data de saida continua valendo e deve ser avaliado
+#             normalmente; so nao entra em periodos que COMECAM depois da saida. Decisao do
+#             usuario para o Flavio Rosato em 24/08/2026. Por isso quem e "corte" CONTINUA
+#             declarado(a) em EQUIPES: numa rodada mensal de agosto/2026 o relatorio dele
+#             sai normal, com os atendimentos de 01 a 13/08.
+#
+# NAO apague o historico de quem e "corte" e NAO troque a regra sem o usuario mandar.
+DESLIGADOS = {
+    "GRAZIELE ANSELMO":   {"saida": "08/08/2026", "regra": "total"},
+    "GRAZIELA DOS ANJOS": {"saida": "24/08/2026", "regra": "total"},
+    "FLAVIO ROSATO":      {"saida": "24/08/2026", "regra": "corte"},
+}
+
+
+def _saida_dt(nome):
+    """datetime da saida de `nome`, ou None se a pessoa nao esta na lista."""
+    d = DESLIGADOS.get((nome or "").strip().upper())
+    return datetime.strptime(d["saida"], "%d/%m/%Y") if d else None
+
+
+def fora_por_corte(nome, periodo_ini):
+    """True quando `nome` e desligado(a) por CORTE e o periodo comeca depois da saida.
+
+    Serve para nao cobrar presenca de quem ja tinha saido: sem isso a pessoa vira AVISO de
+    "declarado na equipe mas ausente da transcricao" em toda rodada, para sempre.
+    """
+    d = DESLIGADOS.get((nome or "").strip().upper())
+    if not d or d["regra"] != "corte" or periodo_ini is None:
+        return False
+    return periodo_ini > datetime.strptime(d["saida"], "%d/%m/%Y")
+
+
+def montar_equipes(unidade, team, periodo_ini=None):
+    """Recorta `team` (lista de todos da unidade) nas equipes de cada coordenador.
+
+    Devolve (equipes, sem_equipe). Cada equipe traz o coordenador NA LISTA junto com os
+    membros — a nota dele sai no mesmo documento que a da equipe dele.
+
+    Quem está na transcrição mas não foi declarado em nenhuma equipe NÃO é descartado: entra
+    só no pacote consolidado da unidade e é avisado no console, para a coordenação decidir.
+    Abortar aqui quebraria a análise por causa de uma pessoa nova ou desligada no meio do mês.
+    """
+    div = EQUIPES.get((unidade or "").strip())
+    if not div:
+        return [], []
+    por_nome = {t["nome"].upper(): t for t in team}
+    equipes, usados = [], set()
+    for e in div:
+        nomes = [e["coordenador"]] + list(e["membros"])
+        # quem saiu por CORTE antes do periodo nao e cobrado como ausente (ver fora_por_corte)
+        nomes = [n for n in nomes if not fora_por_corte(n, periodo_ini)]
+        membros, faltando = [], []
+        for n in nomes:
+            t = por_nome.get(n)
+            if t is None:
+                faltando.append(n)
+            else:
+                membros.append(t)
+                usados.add(n)
+        if membros:
+            equipes.append({**e, "membros_team": membros, "ausentes": faltando})
+    sem_equipe = [t["nome"] for t in team if t["nome"].upper() not in usados]
+    return equipes, sem_equipe
+
+def escanear_transferencias_saida(lines, tot_map):
+    nomes = sorted(tot_map.keys(), key=len, reverse=True)
+    name_map = {n.upper(): n for n in tot_map}
+    pat = re.compile(r"Atendimento transferido por (" + "|".join(re.escape(n) for n in nomes) + r") para (.+?):?\s*$", re.I)
+    cur_id = None
+    ids = {n: set() for n in tot_map}
+    exemplos = {n: [] for n in tot_map}
+    notas_por_atendimento = {}  # id -> [(dt, nome_de, destino), ...]
+    for ln in lines:
+        m = ATT_RE.match(ln)
+        if m:
+            cur_id = m.group(3)
+            continue
+        mm = MSG_RE.match(ln)
+        if not mm or cur_id is None:
+            continue
+        m2 = pat.search(mm.group(6) or "")
+        if not m2:
+            continue
+        nome_de = name_map.get(m2.group(1).strip().upper())
+        if not nome_de:
+            continue
+        dt = datetime.strptime(mm.group(1) + " " + mm.group(2), "%d/%m/%Y %H:%M:%S")
+        destino = m2.group(2).strip().rstrip(":").strip()
+        notas_por_atendimento.setdefault(cur_id, []).append((dt, nome_de, destino))
+        if cur_id not in ids[nome_de]:
+            ids[nome_de].add(cur_id)
+            # Guardamos ate 30 candidatos (nao 3) porque a escolha dos 3 exemplos que
+            # vao para o relatorio e feita depois, em analisar_colab, priorizando os
+            # repasses para OUTRA pessoa. Achado real de agosto/2026 (Ana Chueco): os
+            # 3 primeiros repasses dela no arquivo eram "para Ana Chueco" — carimbo do
+            # Gestta quando o proprio atendente puxa o chamado para si — e a caixa de
+            # exemplos do criterio 6 mostrava so isso, que nao ilustra direcionamento.
+            if len(exemplos[nome_de]) < 30:
+                contato = (mm.group(4) or "").strip()
+                exemplos[nome_de].append((contato, dt, destino))
+
+    # rebote: o repasse de "nome_de" foi seguido, no MESMO atendimento, por outro
+    # repasse dentro da janela — sinal de que o destino corrigiu a rota.
+    rebotes = {n: set() for n in tot_map}
+    for aid, notas in notas_por_atendimento.items():
+        notas.sort(key=lambda t: t[0])
+        for i in range(len(notas) - 1):
+            dt_i, nome_de, _ = notas[i]
+            dt_prox = notas[i + 1][0]
+            if (dt_prox - dt_i).total_seconds() / 60 <= TRIAGEM_JANELA_REBOTE_MIN:
+                rebotes[nome_de].add(aid)
+    return ids, exemplos, rebotes
+
+# ---------------------------------------------------------------- análise
+def analisar_colab(nm, ats, hdr, transf_saida_ids=None, transf_saida_ex=None, transf_saida_rebote=None):
+    transf_saida_ids = transf_saida_ids or set()
+    transf_saida_ex = transf_saida_ex or []
+    transf_saida_rebote = transf_saida_rebote or set()
+    total = len(ats)
+    Q = dict(vago=0, prazo=0, emp=0, neg=0, alt=0, transf=0, lei=0, out_atts=0,
+             erro=0, erro_prazo=0, msgs=0, girias=0, proativos=0,
+             sla_consid=0, sla_dentro=0, tempos=[], vago_ex=None, neg_ex=None,
+             giria_ex=[])
+    ids_com_msg_propria = set()
+    # exemplos reais por critério (índices 0..8) + candidatos do SLA (com tempo)
+    EX = {i: [] for i in range(9)}
+    sla_cand = []
+    for at in ats:
+        contato = at.get("contato")
+        msgs = sorted(at["mensagens"], key=lambda m: m["dt"])
+        # Só entram mensagens do PRÓPRIO colaborador avaliado — mensagens de quem
+        # atendeu antes (triagem/recepção) num atendimento transferido não podem
+        # contar como exemplo/nota de quem recebeu o repasse. Mesma regra de
+        # autoria já usada no SLA (autor_eh), agora também para os critérios 2-8.
+        outs = [m for m in msgs if m["dir"] == "OUT" and not m["interna"] and autor_eh(nm, m.get("autor"))]
+        for m in outs:
+            Q["msgs"] += 1
+            tx = m["texto"]
+            achou = GIRIA_RE.findall(tx)
+            Q["girias"] += len(achou)
+            if achou and len(Q["giria_ex"]) < 3:
+                termos = ", ".join(sorted({g.lower() for g in achou}))
+                Q["giria_ex"].append(_ex(contato, m["dt"], tx, termos))
+            # exemplos dos demais critérios (o caso que moveu a nota)
+            if len(EX[1]) < 3 and VAGO.search(tx):
+                EX[1].append(_ex(contato, m["dt"], tx, VAGO.search(tx).group(0)))
+            if len(EX[2]) < 3 and EMPATIA.search(tx):
+                EX[2].append(_ex(contato, m["dt"], tx))
+            if len(EX[3]) < 3 and LEI.search(tx):
+                EX[3].append(_ex(contato, m["dt"], tx))
+            if len(EX[4]) < 3 and ERRO.search(tx):
+                EX[4].append(_ex(contato, m["dt"], tx))
+        ext = [m for m in msgs if not m["interna"]]
+        if ext:
+            tdt = at.get("transfer_dt")
+            if tdt is not None:
+                # REGRA v3 (coordenacao 14/07/2026): atendimento recebido por
+                # transferencia entra na base do SLA; o cronometro inicia no
+                # carimbo do repasse e para na 1a mensagem do proprio colaborador.
+                Q["sla_consid"] += 1
+                resp = next((m for m in ext if m["dir"] == "OUT" and autor_eh(nm, m.get("autor")) and m["dt"] >= tdt), None)
+                if resp:
+                    mins = minutos_uteis(tdt, resp["dt"])
+                    Q["tempos"].append(mins)
+                    if mins <= 120: Q["sla_dentro"] += 1
+                    sla_cand.append((mins, tdt, resp["dt"], contato))
+            elif ext[0]["dir"] == "OUT":
+                Q["proativos"] += 1
+            else:
+                Q["sla_consid"] += 1
+                resp = next((m for m in ext[1:] if m["dir"] == "OUT" and autor_eh(nm, m.get("autor"))), None)
+                if resp and resp["dt"] >= ext[0]["dt"]:
+                    mins = minutos_uteis(ext[0]["dt"], resp["dt"])
+                    Q["tempos"].append(mins)
+                    if mins <= 120: Q["sla_dentro"] += 1
+                    sla_cand.append((mins, ext[0]["dt"], resp["dt"], contato))
+        if not outs: continue
+        Q["out_atts"] += 1
+        ids_com_msg_propria.add(at["id"])
+        blob = "\n".join(m["texto"] for m in outs)
+        if VAGO.search(blob):
+            Q["vago"] += 1
+            if not Q["vago_ex"]: Q["vago_ex"] = (at["id"], VAGO.search(blob).group(0))
+        if PRAZO.search(blob): Q["prazo"] += 1
+        if EMPATIA.search(blob): Q["emp"] += 1
+        # CRITERIO 8 (coordenacao 07/08/2026): so entra na base o atendimento que
+        # REALMENTE teve uma negativa. Antes, qualquer atendimento com palavra de
+        # alternativa contava como acerto mesmo sem nenhum "nao" — achado real de
+        # julho/2026: "Fecho meu parceiro!" virava "indicou parceiro de confianca".
+        neg_hit = achar_negativa(blob)
+        if neg_hit:
+            if ALTERNATIVA.search(blob):
+                Q["alt"] += 1
+            else:
+                Q["neg"] += 1
+                if not Q["neg_ex"]: Q["neg_ex"] = (at["id"], neg_hit)
+                if len(EX[7]) < 3:
+                    for mm in outs:
+                        h = achar_negativa(mm["texto"])
+                        if h:
+                            EX[7].append(_ex(contato, mm["dt"], mm["texto"], h))
+                            break
+        if TRANSFER.search(blob): Q["transf"] += 1
+        if LEI.search(blob): Q["lei"] += 1
+        if ERRO.search(blob):
+            Q["erro"] += 1
+            if PRAZO.search(blob): Q["erro_prazo"] += 1
+
+    # critério 6 (Postura Contínua): evidência = repasses reais (nota de
+    # transferência do sistema), não mais frase digitada pela colaboradora.
+    # Auto-repasse ("transferido por X para o proprio X") vai para o FIM da fila: e um
+    # carimbo do sistema quando o atendente puxa o chamado para si, nao ilustra
+    # direcionamento nenhum. Ordenacao estavel: dentro de cada grupo a ordem do arquivo
+    # e preservada, entao o resultado continua deterministico.
+    ex6 = sorted(transf_saida_ex, key=lambda e: autor_eh(nm, e[2]))
+    EX[5] = [{
+        "cliente": c or "—", "data": dt.strftime("%d/%m/%Y"), "hora": dt.strftime("%Hh%M"),
+        "trecho": (f"Atendimento repassado para {destino} em {dt.strftime('%d/%m/%Y')} às {dt.strftime('%Hh%M')} (nota de transferência do sistema)."
+                   if not autor_eh(nm, destino) else
+                   f"Atendimento puxado para si em {dt.strftime('%d/%m/%Y')} às {dt.strftime('%Hh%M')} (carimbo do sistema \"transferido por {nm} para {destino}\")."),
+    } for c, dt, destino in ex6[:3]]
+
+    # critério 1 (SLA): exemplo = os atendimentos acima do limite primeiro, depois os mais lentos
+    for mins, ini_dt, resp_dt, ct in sorted(sla_cand, key=lambda c: (c[0] <= 120, -c[0]))[:3]:
+        over = mins > 120
+        EX[0].append({
+            "cliente": ct or "—", "data": ini_dt.strftime("%d/%m/%Y"), "hora": ini_dt.strftime("%Hh%M"),
+            "trecho": (f"1ª mensagem às {ini_dt.strftime('%Hh%M')} → 1ª resposta do colaborador às "
+                       f"{resp_dt.strftime('%Hh%M')} · {mins:.0f} min úteis"
+                       + (" (acima do limite de 2h)" if over else " (dentro do prazo)")),
+        })
+
+    sla_pct = round(Q["sla_dentro"] / Q["sla_consid"] * 100, 1) if Q["sla_consid"] else None
+    med = round(sum(Q["tempos"]) / len(Q["tempos"]), 1) if Q["tempos"] else 0.0
+    taxa = round(Q["girias"] / Q["msgs"] * 100, 3) if Q["msgs"] else 0.0
+    oa = Q["out_atts"]
+
+    notas, just, txt, bl, dest = {}, {}, {}, {}, {}
+
+    if sla_pct is None:
+        notas[0] = None
+        just[0] = "Não avaliado — sem atendimentos que exigissem resposta no período"
+        txt[0] = "Não houve no período nenhum atendimento que exigisse primeira resposta do colaborador (iniciado pelo cliente ou recebido por transferência), portanto o critério não pôde ser avaliado."
+    else:
+        n1 = nota_desc(sla_pct, SLA_TABELA)
+        notas[0] = n1
+        just[0] = f"{sla_pct}% de 1ª resposta do próprio colaborador ≤2h úteis (média {med:.0f} min úteis) — base {Q['sla_consid']} atend. (iniciados pelo cliente ou recebidos por transferência)"
+        txt[0] = (f"Dos {Q['sla_consid']} atendimentos que exigiam resposta — iniciados pelo cliente (contagem a partir da 1ª mensagem) ou recebidos por transferência (contagem a partir do repasse) — {Q['sla_dentro']} tiveram a primeira resposta do próprio colaborador dentro do limite de 2 horas úteis do manual (expediente 07:30–18:00, segunda a sexta, feriados descontados) "
+                  f"({sla_pct}%), com tempo médio de {med:.0f} minutos úteis. Os {Q['proativos']} atendimentos proativos (iniciados pelo próprio colaborador, sem transferência) ficam fora da base.")
+        dest[0] = {"label": "Boa prática" if n1 >= 9 else "Atenção",
+                   "texto": ("Manter o padrão atual de resposta rápida — protocolo de recebimento em até 2h vem sendo cumprido com folga."
+                             if n1 >= 9 else "Mesmo sem a solução pronta, protocolar o recebimento da demanda em até 2 horas — isso já cumpre o SLA do manual.")}
+
+    base2 = Q["vago"] + Q["prazo"]
+    if base2 == 0:
+        notas[1] = None; just[1] = "Não avaliado — sem demandas adiadas no mês"
+        txt[1] = "Não houve no mês volume relevante de demandas deixadas para depois, portanto o critério não pôde ser avaliado."
+    else:
+        pv = Q["vago"] / base2 * 100
+        notas[1] = 10.0 if pv == 0 else 9.0 if pv <= 10 else 8.0 if pv <= 25 else 7.0 if pv <= 40 else 6.0
+        just[1] = f"termo vago em {Q['vago']} de {base2} demandas adiadas ({pf(pv)})"
+        exs = f" Exemplo de termo vago: \"{Q['vago_ex'][1]}\" (atend. {Q['vago_ex'][0]})." if Q["vago_ex"] else ""
+        txt[1] = (f"Entre as {base2} demandas que ficaram para resolução posterior, {Q['prazo']} receberam prazo claro e {Q['vago']} ficaram com termos vagos "
+                  f"como \"vou verificar\" ({pf(pv)} do total).{exs}")
+        dest[1] = {"label": "Regra", "texto": "O que não se resolve na hora ganha prazo claro e fixo (ex.: \"será atendida em 2 dias úteis\") — nunca \"vou verificar\"."}
+
+    if oa == 0:
+        notas[2] = None
+        just[2] = "Não avaliado — sem atendimento com mensagem própria no período"
+        txt[2] = f"Não houve no período nenhum atendimento com mensagem própria de {nm}, portanto o critério não pôde ser avaliado."
+    else:
+        pe = Q["emp"] / oa * 100
+        n3 = 10.0 if pe >= 95 else 9.0 if pe >= 80 else 8.0 if pe >= 60 else 7.0 if pe >= 40 else 6.0
+        notas[2] = n3
+        just[2] = f"marcas de cortesia/validação em {Q['emp']} de {oa} atendimentos ({pf(pe)})"
+        txt[2] = (f"Em {Q['emp']} dos {oa} atendimentos com participação do analista ({pf(pe)}) há pelo menos uma marca de empatia — saudação com nome, "
+                  f"validação da preocupação (\"entendo\", \"fica tranquilo\") ou cortesia ativa (\"vou te ajudar\", \"à disposição\").")
+        dest[2] = {"label": "Exemplo positivo" if n3 >= 9 else "Atenção",
+                   "texto": ("Cortesia consistente: praticamente todo atendimento abre com saudação e valida a preocupação do cliente."
+                             if n3 >= 9 else "Validar a preocupação do cliente em TODO atendimento — um problema \"pequeno\" para o contador pode ser enorme para o cliente.")}
+
+    if oa == 0:
+        notas[3] = None
+        just[3] = "Não avaliado — sem atendimento com mensagem própria no período"
+        txt[3] = f"Não houve no período nenhuma mensagem própria de {nm} para avaliar clareza/uso de canais, portanto o critério não pôde ser avaliado."
+    else:
+        d4 = Q["lei"]
+        notas[3] = 9.5 if d4 == 0 else 8.0 if d4 <= 2 else 7.0 if d4 <= 5 else 6.0
+        just[3] = f"{d4} atendimento(s) com citação de lei/artigo sem tradução prática" if d4 else "nenhum desvio de canal/tecnicidade identificado"
+        txt[3] = (f"Foram identificados {d4} atendimento(s) com citação direta de lei/artigo em texto corrido — o manual pede tradução para a prática do cliente, com exemplo concreto."
+                  if d4 else "Não foram identificados desvios: nenhuma colagem de lei/artigo sem tradução prática e nenhum tema de alta complexidade tratado apenas por texto sem oferta de telefone.")
+        bl[3] = ["Em dúvidas de alta complexidade, priorizar o telefone.",
+                 "Se responder por escrito, incluir exemplo prático ligado à realidade do cliente."]
+        dest[3] = {"label": "Regra", "texto": "É proibido copiar e colar lei/artigo sem traduzir para a prática do cliente."}
+
+    if Q["erro"] == 0:
+        notas[4] = None; just[4] = "Não avaliado — sem erro do colaborador identificado no mês"
+        txt[4] = "Não foi identificado no mês nenhum erro do próprio colaborador que exigisse tratamento; erros de cliente não entram nesta avaliação."
+    else:
+        pp = Q["erro_prazo"] / Q["erro"] * 100
+        notas[4] = 9.0 if pp >= 80 else 8.0 if pp >= 50 else 7.5
+        just[4] = f"{Q['erro']} caso(s) com falha assumida; prazo de correção explícito em {Q['erro_prazo']} ({pf(pp)})"
+        txt[4] = (f"Em {Q['erro']} atendimento(s) o colaborador assumiu uma falha ou pediu desculpas de forma transparente; em {Q['erro_prazo']} deles houve também prazo claro de correção. "
+                  f"Erros do cliente que exigiram retificação não afetaram esta nota.")
+        bl[4] = [f"Assumiu a falha com transparência em {Q['erro']} caso(s). ✓"] + ([f"Prazo prioritário de correção explícito em apenas {Q['erro_prazo']} de {Q['erro']}. ✗"] if pp < 80 else [])
+        dest[4] = {"label": "Regra", "texto": "Erro do colaborador: assumir, justificar com transparência e dar prazo claro e prioritário de correção."}
+
+    transf_real = len(transf_saida_ids)
+    overlap6 = len(transf_saida_ids & ids_com_msg_propria)
+
+    if nm.upper() in PAPEL_TRIAGEM:
+        # Papel de TRIAGEM: repassar é a função, não uma falha. O critério mede se o
+        # direcionamento foi certo (destino não precisou corrigir a rota em até 24h),
+        # não "resolveu sem repassar".
+        rebote_n = len(transf_saida_ids & transf_saida_rebote)
+        base6 = oa + transf_real
+        if base6 == 0:
+            notas[5] = None
+            just[5] = "Não avaliado — sem atendimento com participação no período"
+            txt[5] = f"Não houve no período nenhum atendimento com participação de {nm}, portanto o critério não pôde ser avaliado."
+        else:
+            acertos = base6 - rebote_n
+            pd_ = acertos / base6 * 100
+            n6 = 9.5 if pd_ >= 95 else 9.0 if pd_ >= 85 else 8.0 if pd_ >= 70 else 7.0 if pd_ >= 55 else 6.0
+            notas[5] = n6
+            just[5] = f"direcionamento correto em {acertos} de {base6} atendimentos ({pf(pd_)}) — função de triagem/direcionamento"
+            txt[5] = (f"Como {nm.split()[0]} tem função de recebimento e direcionamento de chamados (triagem), este critério não mede \"resolveu sem repassar\" "
+                      f"— repassar para o setor certo É a função. Em vez disso, mede se o direcionamento foi rápido e certo: dos {base6} atendimentos em que atuou "
+                      f"({oa} concluídos diretamente, {transf_real} direcionados a um colega), {rebote_n} precisaram ser corrigidos (o colega que recebeu teve que "
+                      f"repassar de novo em até 24h, sinal de rota errada). Taxa de direcionamento correto: {pf(pd_)}.")
+            dest[5] = {"label": "Boa prática" if n6 >= 9 else "Atenção",
+                       "texto": ("Direcionamento consistente para o setor certo — manter o padrão." if n6 >= 9
+                                 else "Alguns direcionamentos precisaram de correção rápida pelo colega que recebeu — vale checar com a coordenação se o fluxo de rota está claro.")}
+    else:
+        base6 = oa + (transf_real - overlap6)
+        if oa == 0:
+            # Sem mensagem própria da colaboradora no período: mesma trava dos
+            # demais critérios. Um repasse isolado sem NENHUMA outra atividade no
+            # mês não deve, sozinho, gerar nota (amostra estatisticamente vazia).
+            notas[5] = None
+            just[5] = "Não avaliado — sem atendimento com mensagem própria no período"
+            txt[5] = f"Não houve no período nenhum atendimento com mensagem própria de {nm}, portanto o critério não pôde ser avaliado."
+        else:
+            pd_ = 100 - (transf_real / base6 * 100)
+            n6 = 9.5 if pd_ >= 95 else 9.0 if pd_ >= 85 else 8.0 if pd_ >= 70 else 7.0 if pd_ >= 55 else 6.0
+            notas[5] = n6
+            just[5] = f"{base6 - transf_real} de {base6} atendimentos resolvidos sem repasse ({pf(pd_)})"
+            txt[5] = (f"Considerando também os atendimentos que {nm} começou e depois repassou a um colega — identificados pela nota de "
+                      f"transferência do sistema, mesmo quando o registro final ficou no histórico de quem recebeu — {base6 - transf_real} dos {base6} "
+                      f"atendimentos ({pf(pd_)}) foram conduzidos até a conclusão sem repasse; {transf_real} foram transferidos a outro colega/setor.")
+            dest[5] = {"label": "Boa prática" if n6 >= 9 else "Atenção",
+                       "texto": ("Alta resolutividade direta — manter o padrão de concluir a demanda na própria célula."
+                                 if n6 >= 9 else "Antes de transferir, esgotar o que pode ser resolvido na própria célula — evitar o \"empurra-empurra\" entre setores.")}
+
+    if oa == 0:
+        notas[6] = None
+        just[6] = "Não avaliado — sem atendimento com mensagem própria no período"
+        txt[6] = f"Não houve no período nenhuma mensagem própria de {nm} para avaliar este critério, portanto não pôde ser avaliado."
+    else:
+        notas[6] = 10.0
+        just[6] = "nenhuma evidência de prática irregular aceita ou orientada no mês"
+        txt[6] = "Não foi identificada nenhuma situação de prática irregular aceita ou sugerida; as orientações seguem a legislação e informam riscos quando aplicável."
+        dest[6] = {"label": "Boa prática", "texto": "Nunca executar prática irregular pedida pelo cliente — orientar formalmente o procedimento correto."}
+
+    base8 = Q["alt"] + Q["neg"]
+    if base8 < MIN_BASE_C8:
+        notas[7] = None
+        EX[7] = []  # critério "Não avaliado" não exibe caixa de exemplos
+        if base8 == 0:
+            just[7] = "Não avaliado — sem pedido não atendível direto no mês"
+            txt[7] = "Não houve no mês pedido que exigisse negativa, portanto o critério não pôde ser avaliado."
+        else:
+            just[7] = f"Não avaliado — apenas {base8} caso(s) no mês (mínimo de {MIN_BASE_C8})"
+            txt[7] = (f"No período houve apenas {base8} atendimento(s) em que o pedido não podia ser atendido "
+                      f"diretamente — abaixo do mínimo de {MIN_BASE_C8} casos definido pela coordenação para "
+                      f"avaliar este critério. Com base tão pequena, um único caso lido de outra forma moveria "
+                      f"a nota em vários pontos, portanto o critério não foi avaliado e seu peso foi "
+                      f"redistribuído entre os demais critérios.")
+    else:
+        pa = Q["alt"] / base8 * 100
+        notas[7] = 9.0 if pa >= 80 else 8.0 if pa >= 60 else 7.0 if pa >= 40 else 6.0
+        just[7] = f"alternativa apresentada em {Q['alt']} de {base8} negativas ({pf(pa)})"
+        exs = f" Exemplo de negativa seca: \"{Q['neg_ex'][1]}\" (atend. {Q['neg_ex'][0]})." if Q["neg_ex"] and pa < 80 else ""
+        txt[7] = (f"Dos {base8} casos em que o pedido não podia ser atendido diretamente, {Q['alt']} receberam alternativa/consulta a outra célula e "
+                  f"{Q['neg']} ficaram na negativa seca.{exs}")
+        dest[7] = {"label": "Regra", "texto": "Evitar o \"não fazemos\" seco: explorar alternativas, consultar outras células ou indicar parceiro de confiança."}
+
+    if Q["msgs"] == 0:
+        notas[8] = None
+        just[8] = "Não avaliado — sem mensagens próprias no período"
+        txt[8] = f"Não houve no período nenhuma mensagem própria de {nm} para avaliar clareza de escrita, portanto o critério não pôde ser avaliado."
+    else:
+        n9 = teto_cres(taxa, GIRIAS_TABELA)
+        notas[8] = n9
+        just[8] = f"{Q['girias']} gírias/abreviações em {Q['msgs']} mensagens (taxa {taxa:.2f}/100)"
+        txt[8] = (f"Foram contadas {Q['girias']} ocorrências de gírias/abreviações vetadas pelo manual (\"vc\", \"pra\", \"kk\" etc.) nas {Q['msgs']} mensagens enviadas — "
+                  f"taxa de {taxa:.2f} por 100 mensagens, que define o teto da nota.")
+        bl[8] = ["\"vc\" → \"você\"; \"pra\" → \"para\"; revisar antes de enviar. " + ("✗" if n9 < 9 else "✓")] if Q["girias"] else []
+        dest[8] = {"label": "Regra de ouro", "texto": "Revisar a mensagem antes de enviar: sem gírias e abreviações, com tópicos ao solicitar documentos."}
+
+    sw = sum(PESO[i] for i in range(9) if notas[i] is not None)
+    nf = round(sum(notas[i] * PESO[i] for i in range(9) if notas[i] is not None) / sw, 1) if sw else None
+
+    criterios = []
+    for i in range(9):
+        c = {"nome": CRIT[i], "peso": PESO_S[i], "justificativa": just[i], "texto": txt[i]}
+        if notas[i] is not None: c["nota"] = fmt(notas[i])
+        if bl.get(i): c["bullets"] = bl[i]
+        if dest.get(i): c["destaque"] = dest[i]
+        criterios.append(c)
+
+    # exemplos reais em TODOS os critérios (cliente, data e hora)
+    SEM = lambda t: [{"trecho": t, "sem_ocorrencia": True}]
+    for i in range(8):
+        if EX[i]:
+            criterios[i]["evidencias"] = EX[i]
+        elif i == 6:  # Ética: baseline, sem detecção automática
+            criterios[i]["evidencias"] = SEM("Baseline de conformidade legal — sem ocorrência específica de irregularidade detectada no período.")
+        elif notas[i] is not None:
+            criterios[i]["evidencias"] = SEM("Sem ocorrência específica registrada no período para este critério.")
+
+    if Q["giria_ex"]:
+        criterios[8]["evidencias"] = Q["giria_ex"]
+    else:
+        criterios[8]["evidencias"] = [{"trecho": "Sem ocorrência de gíria/abreviação registrada no período.",
+                                       "sem_ocorrencia": True}]
+
+    fortes = sorted([i for i in range(9) if notas[i] is not None], key=lambda i: (-notas[i], i))[:2]
+    fracos = sorted([i for i in range(9) if notas[i] is not None], key=lambda i: (notas[i], i))[:2]
+    plabel = hdr["periodo_label_base"] + (" — " + hdr["unidade"] if hdr["unidade"] else "")
+
+    data = {
+        "colaborador": nm, "periodo_label": plabel, "data_geracao": hdr["data_geracao"],
+        "total_atendimentos": total,
+        "resumo_executivo": (f"{hdr['periodo_frase_cap']}, {nm} concluiu {total} atendimentos no Gestta Messenger ({Q['proativos']} proativos), enviando {Q['msgs']} mensagens. "
+                             + (f"O SLA de primeira resposta ficou em {sla_pct}% dentro de 2 horas úteis (média de {med:.0f} minutos úteis; expediente 07:30–18:00, seg–sex). "
+                                if sla_pct is not None else "Não houve no período atendimento que exigisse primeira resposta, portanto o SLA não pôde ser avaliado. ")
+                             + (f"A nota final ponderada dos 9 critérios do Manual de Padrões Operacionais foi {fmt(nf)}."
+                                if nf is not None else f"Não foi possível calcular uma nota mensal: não houve nenhuma mensagem real de {nm} no período.")),
+        "indicadores": [
+            ["Total de atendimentos", str(total)],
+            # `total` = tudo que está na seção do colaborador, inclusive atendimentos em que
+            # ele não escreveu nada. `base6` = atendimentos com mensagem própria + repasses
+            # feitos por ele (que ficam registrados na seção de QUEM RECEBEU). Os dois números
+            # diferem e o critério 6 usa o segundo — sem esta linha a capa dizia 98 e o
+            # critério 6 dizia 107, parecendo erro de contagem (achado real de julho/2026,
+            # Jairo Ravasi; 17 dos 24 de Monte Alto tinham essa divergência).
+            ["Total com participação (base do critério 6)", str(base6)],
+            ["1ª resposta do colaborador em 2h úteis (SLA)",
+             (f"{sla_pct}% (média {med:.0f} min úteis) — base {Q['sla_consid']} atend." if sla_pct is not None else f"Não avaliado — base {Q['sla_consid']} atend.")],
+            ["Atendimentos iniciados pelo analista (proativos)", str(Q["proativos"])],
+            ["Mensagens enviadas pelo analista", f"{Q['msgs']:,}".replace(",", ".")],
+            ["Concluídos no período", f"Sim ({total}/{total})"],
+            ["Ocorrências de gírias/abreviações", f"{Q['girias']} (taxa {taxa:.2f}/100 msgs)"]],
+        "nota_geral_texto": (f"A nota final é a média ponderada dos 9 critérios pelos pesos da planilha da coordenação, calculada de forma determinística sobre a transcrição congelada do período "
+                             f"({hdr['total_api']} atendimentos da unidade). Critérios sem caso aplicável no período constam como \"Não avaliado\" e não entram na média."
+                             + ("" if hdr["periodo_tipo"] == "mes" else " " + AVISO_ACOMP)),
+        "criterios": criterios,
+        "pontos_positivos": [f"{CRIT[i]}: {just[i]}." for i in fortes],
+        "pontos_melhoria": [f"{CRIT[i]}: {just[i]}." for i in fracos],
+        "melhoria_destaque": {"label": "Regra de ouro", "texto": "Prazo fixo em vez de \"vou verificar\", e revisão da escrita antes do envio — os dois ajustes de maior impacto na nota."},
+        "conclusao": (f"O desempenho de {nm} {hdr['periodo_frase']} reflete {total} atendimentos reais analisados na íntegra. "
+                      f"Os pontos fortes e de melhoria acima são todos auditáveis na transcrição congelada do período."),
+        "conclusao_destaque": {"label": "Mensagem final", "texto": "Atendimento é a vitrine da Altocon: rapidez no primeiro contato, prazo claro e escrita impecável."}
+    }
+    crit_notas = {CRIT[i]: fmt(notas[i]) for i in range(9) if notas[i] is not None}
+
+    # indicadores que o Resumo da Equipe usa quando NÃO há nota (acompanhamento)
+    # valores curtos de propósito: a tabela do resumo tem 6 colunas em 17 cm de página útil —
+    # texto longo quebrava em duas linhas por célula (conferido na semana 03–09/08/2026).
+    resumo_indic = {
+        "sla": (f"{sla_pct}% ({Q['sla_consid']})" if sla_pct is not None else "sem base"),
+        "msgs": Q["msgs"],
+        "girias": f"{Q['girias']} ({taxa:.2f})",
+        "proativos": Q["proativos"],
+    }
+
+    data["periodo_tipo"] = hdr["periodo_tipo"]
+    if hdr["periodo_tipo"] != "mes":
+        # ---- ACOMPANHAMENTO: levantamento sem nota (ver bloco AVISO_ACOMP no topo) ----
+        data["resumo_executivo"] = (
+            f"{hdr['periodo_frase_cap']}, {nm} concluiu {total} atendimentos no Gestta Messenger "
+            f"({Q['proativos']} proativos), enviando {Q['msgs']} mensagens. "
+            + (f"O SLA de primeira resposta ficou em {sla_pct}% dentro de 2 horas úteis "
+               f"(média de {med:.0f} minutos úteis; expediente 07:30–18:00, seg–sex). "
+               if sla_pct is not None else
+               "Não houve no período atendimento que exigisse primeira resposta, portanto o SLA não pôde ser medido. ")
+            + "Este documento é um levantamento de acompanhamento e não atribui nota — a avaliação "
+              "formal, com nota ponderada dos 9 critérios, é a mensal.")
+        data.pop("nota_geral_texto", None)
+        data["panorama_texto"] = (
+            "O quadro abaixo resume o que a transcrição congelada do período mostra em cada um dos 9 "
+            f"critérios do Manual de Padrões Operacionais ({hdr['total_api']} atendimentos da unidade). "
+            "Critério sem caso no período aparece como \"Sem caso aplicável\". " + AVISO_ACOMP)
+        for c in data["criterios"]:
+            c.pop("nota", None)   # nenhuma nota sai no JSON de acompanhamento
+            c.pop("peso", None)
+            c["justificativa"] = _sem_nota(c.get("justificativa"))
+            c["texto"] = _sem_nota(c.get("texto"))
+        data["pontos_positivos"] = [_sem_nota(x) for x in data["pontos_positivos"]]
+        data["pontos_melhoria"] = [_sem_nota(x) for x in data["pontos_melhoria"]]
+        data["melhoria_destaque"] = {
+            "label": "Foco para a próxima semana",
+            "texto": "Prazo fixo em vez de \"vou verificar\", e revisão da escrita antes do envio — "
+                     "os dois ajustes de maior impacto no atendimento."}
+        data["conclusao"] = (
+            f"O acompanhamento de {nm} {hdr['periodo_frase']} reflete {total} atendimentos reais lidos "
+            f"na íntegra. Os pontos acima são auditáveis na transcrição congelada do período e servem "
+            f"para orientar o trabalho da semana seguinte; a nota de desempenho é apurada no fechamento do mês.")
+
+    return data, nf, crit_notas, resumo_indic
+
+def escrever_resumos_equipe(outdir, hdr, team, equipes, acomp, media=None, rank=None):
+    """Grava um `resumo_equipe_<Coordenador>.json` por coordenador.
+
+    O `resumo_equipe.json` da unidade continua sendo gravado igual e NÃO é tocado aqui —
+    é ele que o diretor recebe e é ele que garante que os pacotes antigos não mudem.
+    """
+    unidade = (hdr.get("unidade") or "").strip()
+    n_unid = len(team)
+    pos, med_crit = {}, {}
+    if not acomp:
+        if rank:
+            for i, t in enumerate(rank, 1):
+                pos[t["nome"]] = i
+        # Médias por critério da UNIDADE INTEIRA (decisão de 11/08/2026): o resumo de equipe
+        # mostra a régua da unidade, não a da própria equipe — senão cada coordenador teria
+        # uma referência diferente e os documentos deixariam de ser comparáveis entre si.
+        for c in CRIT:
+            vals = []
+            for t in team:
+                try:
+                    vals.append(float(str((t.get("criterios") or {}).get(c)).replace(",", ".")))
+                except (TypeError, ValueError):
+                    pass
+            med_crit[c] = fmt_na(round(sum(vals) / len(vals), 1)) if vals else "—"
+    escritos = []
+    for e in equipes:
+        membros = e["membros_team"]
+        coord = next((m["nome"] for m in membros if m["nome"].upper() == e["coordenador"]),
+                     e["coordenador"].title())
+        depto = e["departamento"]
+        tot_eq = sum(int(m.get("total_atendimentos") or 0) for m in membros)
+        escopo = {"coordenador": coord, "departamento": depto,
+                  "diretor": bool(e.get("diretor")), "unidade": unidade,
+                  "total_colaboradores_unidade": n_unid,
+                  "posicoes": pos, "medias_criterio_unidade": med_crit,
+                  "depto_membro": e.get("depto_membro") or {}}
+        base = {"periodo_label": hdr["periodo_label_base"] + (" — " + unidade if unidade else ""),
+                "periodo_tipo": hdr["periodo_tipo"], "data_geracao": hdr["data_geracao"],
+                "escopo_equipe": escopo,
+                "total_colaboradores": len(membros), "total_atendimentos": tot_eq,
+                "colaboradores": membros}
+        if acomp:
+            vol = sorted(membros, key=lambda t: (-int(t.get("total_atendimentos") or 0), t["nome"].lower()))
+            com_girias = sum(1 for t in membros if not t["girias"].startswith("0 ("))
+            sem_sla = [t["nome"] for t in membros if t["sla"] == "sem base"]
+            base.update({
+                "colaboradores": vol,
+                "resumo_executivo": (
+                    AVISO_ACOMP + " "
+                    f"Equipe de {coord} ({depto}): {len(membros)} colaboradores e {tot_eq} atendimentos "
+                    f"{hdr['periodo_frase']}. Maior volume: {vol[0]['nome']} "
+                    f"({vol[0]['total_atendimentos']} atendimentos). Os indicadores abaixo são contagens "
+                    "diretas sobre a transcrição congelada — não há nota, média nem ranking neste documento."),
+                "destaques": [
+                    f"Volume da equipe {hdr['periodo_frase']}: {tot_eq} atendimentos por {len(membros)} colaboradores.",
+                    f"Gírias/abreviações: {com_girias} de {len(membros)} colaboradores da equipe tiveram ao menos uma ocorrência.",
+                ] + ([f"Sem base de SLA no período: {', '.join(sem_sla)}."] if sem_sla else []),
+                "pontos_melhoria_equipe": [
+                    "Gírias e abreviações (\"vc\", \"pra\", \"obg\") continuam aparecendo nas mensagens — revisar antes de enviar.",
+                    "Substituir \"vou verificar\"/\"vou analisar\" por prazo claro e fixo (ex.: \"em 2 dias úteis\").",
+                    "Reduzir transferências sem conclusão: esgotar a solução na própria célula antes de repassar."],
+                "conclusao": (
+                    f"Este levantamento cobre a equipe de {coord} ({depto}) em {hdr['periodo_nome']} e serve "
+                    f"para acompanhar o andamento entre os fechamentos mensais. A avaliação com nota, ranking "
+                    f"e média é feita no fechamento do mês, sobre a unidade inteira.")})
+        else:
+            def _nota(v):
+                try:
+                    return float(str(v).replace(",", "."))
+                except (TypeError, ValueError):
+                    return None
+            aval = [m for m in membros if m.get("nota_final") not in (None, "—")]
+            melhor = min(aval, key=lambda m: pos.get(m["nome"], 10**6)) if aval else None
+            sla9 = sum(1 for m in membros
+                       if (_nota((m.get("criterios") or {}).get(CRIT[0])) or 0) >= 9)
+            base.update({
+                "media_geral": fmt_na(media),
+                "resumo_executivo": (
+                    f"Equipe de {coord} ({depto}): {len(membros)} colaboradores e {tot_eq} atendimentos "
+                    f"{hdr['periodo_frase']}. A média geral de {unidade or 'da unidade'} foi {fmt_na(media)}, "
+                    f"calculada sobre os {n_unid} colaboradores da unidade — a coluna \"#\" da tabela abaixo "
+                    f"é a posição de cada um no ranking da UNIDADE INTEIRA, não dentro da equipe. "
+                    f"Todas as notas são calculadas de forma determinística sobre a transcrição congelada."),
+                "destaques": ([
+                    f"{melhor['nome']} é o melhor colocado da equipe: {melhor['nota_final']}, "
+                    f"{pos.get(melhor['nome'], '—')}º lugar entre os {n_unid} da unidade."] if melhor else []) + [
+                    f"SLA de primeira resposta com nota ≥9,0 em {sla9} de {len(membros)} colaboradores da equipe.",
+                    "Ética e Transparência: nenhuma ocorrência de prática irregular identificada na equipe."],
+                "pontos_melhoria_equipe": [
+                    "Gírias e abreviações (\"vc\", \"pra\", \"obg\") ainda derrubam o critério de escrita — revisar antes de enviar.",
+                    "Substituir \"vou verificar\"/\"vou analisar\" por prazo claro e fixo (ex.: \"em 2 dias úteis\").",
+                    "Reduzir transferências sem conclusão: esgotar a solução na própria célula antes de repassar."],
+                "conclusao": (
+                    f"Este resumo cobre a equipe de {coord} ({depto}) em {hdr['periodo_nome']}. A média e o "
+                    f"ranking são da unidade {unidade} inteira, para manter a comparação com os demais "
+                    f"pacotes. Os relatórios individuais anexos detalham o plano de melhoria de cada um.")})
+        safe = re.sub(r"[^A-Za-z0-9]+", "_", coord).strip("_")
+        caminho = os.path.join(outdir, f"resumo_equipe_{safe}.json")
+        with open(caminho, "w", encoding="utf-8") as f:
+            json.dump(base, f, ensure_ascii=False, indent=1)
+        escritos.append((coord, depto, len(membros), tot_eq))
+        if e.get("ausentes"):
+            print(f"  AVISO: declarado(s) na equipe de {coord} mas ausente(s) na transcrição: "
+                  f"{', '.join(e['ausentes'])}")
+    return escritos
+
+
+# ---------------------------------------------------------------- main
+def main():
+    if len(sys.argv) < 3:
+        sys.exit("Uso: python3 scripts/analisar.py <transcricao.txt> <dir_saida>")
+    lines = open(sys.argv[1], encoding="utf-8").read().split("\n")
+    outdir = sys.argv[2]; os.makedirs(outdir, exist_ok=True)
+    hdr = ler_cabecalho(lines)
+    colabs = parse(lines, hdr["tot_map"])
+    # trava de integridade do parse
+    for nm, t in hdr["tot_map"].items():
+        got = len(colabs.get(nm, []))
+        gotm = sum(len(a["mensagens"]) for a in colabs.get(nm, []))
+        if got != t or gotm != hdr["msg_map"][nm]:
+            sys.exit(f"ERRO de parse em {nm}: {got}/{t} atendimentos, {gotm}/{hdr['msg_map'][nm]} mensagens. Abortado.")
+
+    # rede de seguranca: desligado(a) que escapou da selecao do agente de leitura
+    for nm in sorted(colabs):
+        d = DESLIGADOS.get(nm.strip().upper())
+        if not d:
+            continue
+        if d["regra"] == "total":
+            print(f"  ATENCAO: {nm} esta DESLIGADA(O) desde {d['saida']} e NAO deveria estar "
+                  f"nesta transcricao. Refaca a leitura sem marcar esse nome - a media e o "
+                  f"ranking desta rodada saem com ela(e) dentro.")
+        elif fora_por_corte(nm, hdr["periodo_ini"]):
+            print(f"  ATENCAO: {nm} saiu em {d['saida']} e este periodo comeca depois disso, "
+                  f"mas o nome veio na transcricao. Refaca a leitura sem marca-lo(a). "
+                  f"(Periodos que incluem dias trabalhados por ele(a) sao avaliados normal.)")
+
+    transf_saida_ids, transf_saida_ex, transf_saida_rebote = escanear_transferencias_saida(lines, hdr["tot_map"])
+
+    acomp = hdr["periodo_tipo"] != "mes"
+    team = []
+    for nm in sorted(colabs, key=lambda s: s.lower()):
+        data, nf, crit_notas, ind = analisar_colab(nm, colabs[nm], hdr, transf_saida_ids.get(nm), transf_saida_ex.get(nm), transf_saida_rebote.get(nm))
+        safe = re.sub(r"[^A-Za-z0-9]+", "_", nm).strip("_")
+        with open(os.path.join(outdir, f"analise_{safe}.json"), "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=1)
+        if acomp:
+            # sem nota nem notas por critério — o resumo do acompanhamento é de indicadores
+            team.append({"nome": nm, "total_atendimentos": len(colabs[nm]),
+                         "sla": ind["sla"], "mensagens": ind["msgs"],
+                         "girias": ind["girias"], "proativos": ind["proativos"]})
+            print(f"{nm:34} {len(colabs[nm]):>5} atend. | SLA {ind['sla']}")
+        else:
+            team.append({"nome": nm, "total_atendimentos": len(colabs[nm]), "nota_final": fmt_na(nf), "criterios": crit_notas})
+            print(f"{nm:34} NF={fmt_na(nf)}")
+
+    plabel = hdr["periodo_label_base"] + (" — " + hdr["unidade"] if hdr["unidade"] else "")
+    total_at = sum(t["total_atendimentos"] for t in team)
+
+    if acomp:
+        # ---- Resumo da equipe SEM nota: levantamento por volume de atendimentos ----
+        vol = sorted(team, key=lambda t: (-t["total_atendimentos"], t["nome"].lower()))
+        sem_sla = [t["nome"] for t in team if t["sla"] == "sem base"]
+        com_girias = sum(1 for t in team if not t["girias"].startswith("0 ("))
+        resumo = {
+            "periodo_label": plabel, "periodo_tipo": hdr["periodo_tipo"],
+            "data_geracao": hdr["data_geracao"],
+            "total_colaboradores": len(team),
+            "total_atendimentos": total_at,
+            "resumo_executivo": (
+                AVISO_ACOMP + " "
+                f"A unidade concluiu {total_at} atendimentos {hdr['periodo_frase']}, distribuídos entre "
+                f"{len(team)} colaboradores. Maior volume: {vol[0]['nome']} ({vol[0]['total_atendimentos']} atendimentos)"
+                + (f" e {vol[1]['nome']} ({vol[1]['total_atendimentos']})" if len(vol) > 1 else "") + ". "
+                "Os indicadores abaixo são contagens diretas sobre a transcrição congelada do período — "
+                "não há nota, média nem ranking de desempenho neste documento."),
+            "colaboradores": vol,
+            "destaques": [
+                f"Volume do período: {total_at} atendimentos concluídos por {len(team)} colaboradores.",
+                f"Gírias/abreviações: {com_girias} de {len(team)} colaboradores tiveram ao menos uma ocorrência no período.",
+                "Ética e Transparência: nenhuma ocorrência de prática irregular identificada na unidade no período.",
+            ] + ([f"Sem base de SLA no período (nenhum atendimento exigiu primeira resposta): {', '.join(sem_sla)}."] if sem_sla else []),
+            "pontos_melhoria_equipe": [
+                "Gírias e abreviações (\"vc\", \"pra\", \"obg\") continuam aparecendo nas mensagens — revisar antes de enviar.",
+                "Substituir \"vou verificar\"/\"vou analisar\" por prazo claro e fixo (ex.: \"em 2 dias úteis\").",
+                "Reduzir transferências sem conclusão: esgotar a solução na própria célula antes de repassar."],
+            "conclusao": (
+                f"Este levantamento cobre {hdr['periodo_nome']} e serve para a diretoria acompanhar o "
+                f"andamento da unidade entre os fechamentos mensais. Todos os números são reconstruíveis "
+                f"a partir da transcrição congelada do período. A avaliação de desempenho com nota, "
+                f"ranking e média da equipe é feita no fechamento do mês.")
+        }
+        with open(os.path.join(outdir, "resumo_equipe.json"), "w", encoding="utf-8") as f:
+            json.dump(resumo, f, ensure_ascii=False, indent=1)
+        equipes, sem_eq = montar_equipes(hdr["unidade"], team, hdr["periodo_ini"])
+        if equipes:
+            print("\nEquipes (acompanhamento):")
+            for coord, depto, n, tot in escrever_resumos_equipe(outdir, hdr, team, equipes, True):
+                print(f"  {coord:24} {depto:22} {n:>3} colab. | {tot:>5} atend.")
+            if sem_eq:
+                print(f"  AVISO: sem equipe declarada (só no consolidado): {', '.join(sem_eq)}")
+        print(f"\nACOMPANHAMENTO (sem nota) | {len(team)} colaboradores | {total_at} atendimentos | JSONs em {outdir}")
+        return
+
+    avaliaveis = [t for t in team if t["nota_final"] != "—"]
+    media = round(sum(float(t["nota_final"].replace(",", ".")) for t in avaliaveis) / len(avaliaveis), 1) if avaliaveis else None
+    rank = sorted(avaliaveis, key=lambda t: (-float(t["nota_final"].replace(",", ".")), t["nome"]))
+    resumo = {
+        "periodo_label": plabel, "periodo_tipo": hdr["periodo_tipo"],
+        "data_geracao": hdr["data_geracao"],
+        "total_colaboradores": len(team),
+        "total_atendimentos": total_at,
+        "media_geral": fmt_na(media),
+        "resumo_executivo": (f"A unidade concluiu {total_at} atendimentos {hdr['periodo_frase']}, distribuídos entre {len(team)} colaboradores. "
+                             f"A média geral da equipe foi {fmt_na(media)}. Destaques: {rank[0]['nome']} ({rank[0]['nota_final']})" +
+                             (f" e {rank[1]['nome']} ({rank[1]['nota_final']})" if len(rank) > 1 else "") + ". "
+                             f"Todas as notas deste resumo são calculadas de forma determinística sobre a transcrição congelada do período."),
+        "colaboradores": team,
+        "destaques": [
+            f"{rank[0]['nome']} lidera o ranking com {rank[0]['nota_final']}.",
+            "SLA de primeira resposta com nota ≥9,0 em " + str(sum(1 for t in team if float(t["criterios"].get(CRIT[0], "0").replace(",", ".")) >= 9)) + " colaboradores.",
+            "Ética e Transparência: nenhuma ocorrência de prática irregular identificada na unidade."],
+        "pontos_melhoria_equipe": [
+            "Gírias e abreviações (\"vc\", \"pra\", \"obg\") ainda derrubam o critério de escrita de vários colaboradores — revisar antes de enviar.",
+            "Substituir \"vou verificar\"/\"vou analisar\" por prazo claro e fixo (ex.: \"em 2 dias úteis\").",
+            "Reduzir transferências sem conclusão: esgotar a solução na própria célula antes de repassar."],
+        "conclusao": (f"Com média {fmt_na(media)}, a unidade encerra {hdr['periodo_nome']} com desempenho auditável — toda nota deste resumo é reconstruível a partir "
+                      f"da transcrição congelada do período. Os relatórios individuais detalham os planos de melhoria de cada colaborador.")
+    }
+    with open(os.path.join(outdir, "resumo_equipe.json"), "w", encoding="utf-8") as f:
+        json.dump(resumo, f, ensure_ascii=False, indent=1)
+    equipes, sem_eq = montar_equipes(hdr["unidade"], team, hdr["periodo_ini"])
+    if equipes:
+        print("\nEquipes:")
+        for coord, depto, n, tot in escrever_resumos_equipe(outdir, hdr, team, equipes, False,
+                                                            media=media, rank=rank):
+            print(f"  {coord:24} {depto:22} {n:>3} colab. | {tot:>5} atend.")
+        if sem_eq:
+            print(f"  AVISO: sem equipe declarada (só no consolidado): {', '.join(sem_eq)}")
+    print(f"\nMédia geral: {fmt_na(media)} | {len(team)} colaboradores | JSONs em {outdir}")
+
+if __name__ == "__main__":
+    main()

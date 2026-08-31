@@ -1,0 +1,25 @@
+# ---------------------------------------------------------------
+# NUNCA versionar dados de atendimento (LGPD): transcricoes do
+# Gestta e relatorios gerados contem conversa de cliente e
+# avaliacao nominal de colaborador.
+# ---------------------------------------------------------------
+transcricao*.txt
+transcricao*.md
+*_transcricao*
+relatorio*.docx
+relatorio*.pdf
+Avaliacao*.docx
+Avaliacao*.pdf
+resumo-equipe*
+saida/
+output/
+*.zip
+
+# Cache do Python
+__pycache__/
+*.pyc
+
+# Temporarios do Windows / Office
+Thumbs.db
+desktop.ini
+~$*

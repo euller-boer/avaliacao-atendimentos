@@ -1,0 +1,4 @@
+# Guardar os arquivos byte a byte, sem o Git converter quebra de linha.
+# Motivo: os .ps1 precisam de UTF-8 COM BOM e os .bat/.cmd de UTF-8 SEM BOM;
+# qualquer conversao automatica quebra os acentos no PowerShell 5.1.
+* -text
