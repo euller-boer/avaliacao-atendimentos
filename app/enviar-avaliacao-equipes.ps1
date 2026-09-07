@@ -358,7 +358,7 @@ Prezados,
 
 $intro
 
-O pacote contem um relatorio individual em PDF para cada colaborador e o Resumo da Equipe.
+O pacote contem um relatorio individual em PDF para cada colaborador, o Resumo da Equipe e o Resumo do Escritorio, com a media e o ranking da unidade inteira para comparacao.
 
 As notas seguem os 9 criterios do Manual de Padroes Operacionais, com os pesos definidos pela coordenacao, e cada criterio traz exemplos reais (cliente, data e hora) extraidos das conversas do periodo. A media geral e o ranking sao da unidade inteira.
 

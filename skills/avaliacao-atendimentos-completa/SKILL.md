@@ -149,9 +149,13 @@ agrega **somente os colaboradores selecionados** (deixe isso claro no `periodo_l
   `Acompanhamento_Escritorio_<Cidade>_<sufixo>.docx` (+ um por coordenador), com a tabela de
   indicadores por colaborador ordenada por volume de atendimentos — sem média e sem ranking;
 
-  O **resumo do escritório entra no pacote de TODOS os coordenadores**, não só no da diretoria
-  (decisão do Euller em 01/09/2026): o gestor precisa da média da unidade para comparar com a
-  equipe dele sem ter de pedir o pacote da diretoria.
+  **Só na MENSAL** o resumo do escritório entra no pacote de TODOS os coordenadores, além do da
+  diretoria (decisão do Euller em 01/09/2026): no fechamento do mês o gestor precisa da média da
+  unidade para comparar com a equipe dele sem ter de pedir o pacote da diretoria.
+  **No acompanhamento (semana/dia) NÃO** — o coordenador recebe só a equipe dele (decisão do
+  Euller em 07/09/2026: na semanal o geral não tem necessidade). O `Acompanhamento_Escritorio`
+  continua sendo gerado e continua indo no pacote da **diretoria**; o que mudou foi quem recebe.
+  Quem aplica isso é o `empacotar.py` sozinho — não montar zip à mão para "compensar".
 - **empacotar com um comando** (não montar zip à mão):
 
 ```

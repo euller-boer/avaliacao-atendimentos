@@ -401,12 +401,28 @@ pacotes quando as duas unidades rodam no mesmo período):
 
 | Pacote | Conteúdo |
 |---|---|
-| `Análise de atendimento de <Unidade> - <Coordenador> - <sufixo>.zip` | PDFs da equipe (com o do próprio coordenador) + o resumo dela |
+| `Análise de atendimento de <Unidade> - <Coordenador> - <sufixo>.zip` | PDFs da equipe (com o do próprio coordenador) + o resumo dela + **o resumo do escritório (só na MENSAL)** |
 | `Análise de atendimento de <Unidade> (Diretoria) - <sufixo>.zip` | TODOS os individuais + resumo da unidade + os resumos de equipe |
 | `Análise de atendimento de <Unidade> - <sufixo>.zip` | unidade sem divisão (Taquaritinga): todos + resumo |
 
 No acompanhamento o prefixo vira `Acompanhamento de atendimento` e o sufixo é o do período
 (ex.: `03-08-2026_a_09-08-2026`). O `(Diretoria)` vem colado na unidade, sem " - " antes.
+
+> **O consolidado do escritório no pacote do coordenador — só na MENSAL.**
+> Em **01/09/2026** o `Resumo_Escritorio_<Cidade>_<mês>` passou a ir **junto no zip de cada
+> coordenador**, ao lado do resumo da equipe dele, para o gestor comparar a própria equipe com a
+> média da unidade sem precisar pedir o pacote da diretoria. Foi por isso que o documento passou a
+> se chamar **"Resumo do Escritório"** e não "Resumo da Equipe": dois arquivos com o mesmo nome no
+> mesmo zip não diziam qual era qual.
+>
+> Em **07/09/2026 o usuário restringiu isso à rodada MENSAL.** No **acompanhamento** (semana/dia)
+> o coordenador recebe **apenas a equipe dele** — os individuais da equipe + o
+> `Acompanhamento_Equipe_<Coord>`, sem o `Acompanhamento_Escritorio`. Motivo: na semanal o geral
+> não tem necessidade. O consolidado **continua sendo gerado** e continua saindo no pacote da
+> **diretoria** nos dois regimes — o que mudou foi só quem recebe.
+>
+> No código isso é a variável `extras` em `empacotar.py` (dentro do laço das equipes): leva o
+> resumo do escritório junto **apenas quando `mensal`**. Não repetir a regra em outro lugar.
 
 Quem está na transcrição sem equipe declarada entra **só** no zip da diretoria, e o script
 avisa quem foi — nunca encaixar a pessoa numa equipe por conta própria.

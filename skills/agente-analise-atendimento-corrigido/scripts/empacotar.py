@@ -103,10 +103,12 @@ def main():
     prefixo = "Análise de atendimento" if mensal else "Acompanhamento de atendimento"
     pref_ind = "Relatorio" if mensal else "Acompanhamento"
     pref_eq = "Resumo_Equipe" if mensal else "Acompanhamento_Equipe"
-    # O consolidado do escritorio tem nome proprio: desde 01/09/2026 ele vai TAMBEM no pacote de
-    # cada coordenador, e "Resumo_Equipe_<mes>" ao lado de "Resumo_Equipe_<coord>_<mes>" nao dizia
-    # qual era qual na hora de abrir o zip.
+    # O consolidado do escritorio tem nome proprio: em 01/09/2026 ele passou a ir TAMBEM no
+    # pacote de cada coordenador, e "Resumo_Equipe_<mes>" ao lado de "Resumo_Equipe_<coord>_<mes>"
+    # nao dizia qual era qual na hora de abrir o zip. (Desde 07/09/2026 esse envio ao coordenador
+    # vale so na MENSAL - ver `extras`, mais abaixo; o nome proprio continua valendo sempre.)
     pref_esc = "Resumo_Escritorio" if mensal else "Acompanhamento_Escritorio"
+    rot_eq = "resumo da equipe" if mensal else "acompanhamento da equipe"
 
     saida = a.saida or os.path.join(os.path.expanduser("~"), "Downloads")
     os.makedirs(saida, exist_ok=True)
@@ -181,12 +183,17 @@ def main():
                     continue
                 docs_eq = [individuais[m] for m in info["membros"] if m in individuais]
                 declarados.update(info["membros"])
-                # o resumo do escritorio vai junto para o gestor comparar a equipe dele com a
-                # media da unidade sem precisar pedir o pacote da diretoria
-                alvo = zipar(f"{prefixo} de {unidade} - {info['coordenador']} - {suf}.zip",
-                             docs_eq + [info["docx"], resumo_unidade])
+                # SO NA MENSAL o consolidado do escritorio vai junto no pacote do coordenador,
+                # para ele comparar a equipe com a media da unidade sem pedir o pacote da
+                # diretoria. No ACOMPANHAMENTO (semana/dia) o coordenador recebe so a equipe
+                # dele - decisao do usuario em 07/09/2026: na semanal nao ha necessidade do
+                # geral. O consolidado continua sendo gerado e entregue no pacote da diretoria.
+                extras = [info["docx"], resumo_unidade] if mensal else [info["docx"]]
+                zipar(f"{prefixo} de {unidade} - {info['coordenador']} - {suf}.zip",
+                      docs_eq + extras)
                 print(f"  {info['coordenador']:24} {info['departamento']:34} "
-                      f"{len(docs_eq)} relatório(s) + resumo da equipe + resumo do escritório")
+                      f"{len(docs_eq)} relatório(s) + {rot_eq}"
+                      f"{' + resumo do escritório' if mensal else ''}")
             # diretoria: todos os individuais + resumo da unidade + os resumos de equipe
             todos = list(individuais.values()) + [resumo_unidade] + [i["docx"] for i in equipes.values()]
             zipar(f"{prefixo} de {unidade} (Diretoria) - {suf}.zip", todos)
