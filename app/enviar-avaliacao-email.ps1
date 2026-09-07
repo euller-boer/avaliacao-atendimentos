@@ -56,7 +56,7 @@ if (-not $tb) {
     exit 1
 }
 
-$titulo  = "Avaliacao de Atendimentos"
+$titulo  = "Avaliação de Atendimentos"
 if ($Unidade) { $titulo += " - $Unidade" }
 if ($Periodo) { $titulo += " - $Periodo" }
 
@@ -65,9 +65,9 @@ Prezados,
 
 Segue em anexo a $($Regime.ToLower()) dos atendimentos$(if($Unidade){" da unidade $Unidade"})$(if($Periodo){", referente a $Periodo"}).
 
-O arquivo contem um relatorio individual em PDF para cada colaborador avaliado e o Resumo da Equipe.
+O arquivo contém um relatório individual em PDF para cada colaborador avaliado e o Resumo da Equipe.
 
-As notas seguem os 9 criterios do Manual de Padroes Operacionais, com os pesos definidos pela coordenacao, e cada criterio traz exemplos reais (cliente, data e hora) extraidos das conversas do periodo.
+As notas seguem os 9 critérios do Manual de Padrões Operacionais, com os pesos definidos pela coordenação, e cada critério traz exemplos reais (cliente, data e hora) extraídos das conversas do período.
 
 Atenciosamente,
 "@

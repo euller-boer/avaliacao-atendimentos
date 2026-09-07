@@ -321,8 +321,8 @@ if (-not $tb) {
 function Q($s) { "'" + ($s -replace "'", "" -replace '"', "") + "'" }
 
 # Assunto definido pela coordenacao em 11/08/2026. Vale para as duas unidades.
-$tituloRegime = "ANALISE ATENDIMENTO MENSAL"
-if ($acomp) { $tituloRegime = "ANALISE ATENDIMENTOS SEMANAIS" }
+$tituloRegime = "ANÁLISE ATENDIMENTO MENSAL"
+if ($acomp) { $tituloRegime = "ANÁLISE ATENDIMENTOS SEMANAIS" }
 
 foreach ($e in $emails) {
     if ($e.Tipo -eq "equipe") {
@@ -330,7 +330,7 @@ foreach ($e in $emails) {
         $intro   = "Segue em anexo o pacote da sua equipe, referente a $periodoTxt."
     } elseif ($e.Tipo -eq "diretoria") {
         $assunto = "$tituloRegime - $($e.Rotulo) - $periodoTxt"
-        $intro   = "Segue em anexo o pacote consolidado da unidade, referente a $periodoTxt, junto com os pacotes de cada coordenador."
+        $intro   = "Segue em anexo o pacote consolidado da unidade, referente a $periodoTxt, acompanhado dos pacotes de cada coordenador."
     } else {
         $assunto = "$tituloRegime - $($e.Rotulo) - $periodoTxt"
         $intro   = "Segue em anexo o pacote da unidade $($e.Rotulo), referente a $periodoTxt."
@@ -344,11 +344,11 @@ Prezados,
 
 $intro
 
-O pacote traz um levantamento por colaborador e o resumo da equipe, com os indicadores do periodo (atendimentos, SLA de primeira resposta, mensagens, atendimentos proativos e ocorrencias de girias).
+O pacote traz um levantamento por colaborador e o resumo da equipe, com os indicadores do período (atendimentos, SLA de primeira resposta, mensagens, atendimentos proativos e ocorrências de gírias).
 
-Importante: este e um ACOMPANHAMENTO do periodo, com amostra reduzida - ele NAO atribui nota, media nem ranking. A avaliacao formal, com nota, e a mensal.
+Importante: este é um ACOMPANHAMENTO do período, com amostra reduzida — ele NÃO atribui nota, média nem ranking. A avaliação formal, com nota, é a mensal.
 
-Todos os numeros sao contagens diretas sobre a transcricao congelada do periodo, auditaveis linha a linha.
+Todos os números são contagens diretas sobre a transcrição congelada do período, auditáveis linha a linha.
 
 Atenciosamente,
 "@
@@ -358,9 +358,9 @@ Prezados,
 
 $intro
 
-O pacote contem um relatorio individual em PDF para cada colaborador, o Resumo da Equipe e o Resumo do Escritorio, com a media e o ranking da unidade inteira para comparacao.
+O pacote contém um relatório individual em PDF para cada colaborador, o Resumo da Equipe e o Resumo do Escritório, com a média e o ranking da unidade inteira para comparação.
 
-As notas seguem os 9 criterios do Manual de Padroes Operacionais, com os pesos definidos pela coordenacao, e cada criterio traz exemplos reais (cliente, data e hora) extraidos das conversas do periodo. A media geral e o ranking sao da unidade inteira.
+As notas seguem os 9 critérios do Manual de Padrões Operacionais, com os pesos definidos pela coordenação, e cada critério traz exemplos reais (cliente, data e hora) extraídos das conversas do período. A média geral e o ranking são da unidade inteira.
 
 Atenciosamente,
 "@
