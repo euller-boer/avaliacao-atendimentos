@@ -595,23 +595,52 @@ EQUIPES = {
         # Graziela dos Anjos desligou-se em 24/08/2026: sai das avaliacoes por completo, como
         # a Graziele Anselmo. Tirada daqui para nao virar AVISO de "declarada mas ausente da
         # transcricao" em toda rodada. Ver DESLIGADOS logo abaixo.
-        {"coordenador": "THAINA DE PONTI", "departamento": "Departamento Pessoal",
-         "membros": ["EDUARDA BORGES"]},
+        #
+        # LAYSA MALAGUTTI entra aqui desde 07/09/2026, a pedido do usuario: ela e avaliada
+        # pela Thaina E continua coordenando a propria equipe (Suporte/Atendimento, logo
+        # abaixo). E o UNICO caso de nome declarado em DUAS equipes de proposito — a Katariny
+        # NAO vem junto, so a Laysa. Efeito: o relatorio individual da Laysa e a linha dela
+        # saem nos DOIS pacotes (o da Thaina e o dela). Media, ranking e medias por criterio
+        # nao mudam: sao da UNIDADE inteira, calculados sobre `team`, nao sobre as equipes.
+        # A equipe virou MISTA por causa disso — dai o rotulo composto e o `depto_membro`,
+        # mesmo recurso ja usado na equipe do Lucas (build_team_summary.py imprime
+        # "Departamentos da equipe: ..."). Chaves em MAIUSCULO, iguais ao bloco de integridade.
+        #
+        # O rotulo "Departamento Pessoal e Onboarding" foi informado pelo usuario em 07/09/2026
+        # — NAO foi deduzido. Aqui a Laysa entra como ONBOARDING; na equipe DELA (logo abaixo)
+        # ela continua como Suporte/Atendimento. Sao dois papeis, um em cada equipe, e cada
+        # documento mostra o papel que interessa ao coordenador que o recebe.
+        # ATENCAO: este "Onboarding" nao e o mesmo do antigo "Departamento Pessoal/Onboarding",
+        # que existia de 11/08 a 24/08/2026 por causa da Eduarda ("Duda") Zucchi. Ela nao esta
+        # nesta equipe desde 24/08/2026 (hoje esta na do Diesley).
+        {"coordenador": "THAINA DE PONTI",
+         "departamento": "Departamento Pessoal e Onboarding",
+         "membros": ["EDUARDA BORGES", "LAYSA MALAGUTTI"],
+         "depto_membro": {"THAINA DE PONTI": "Departamento Pessoal",
+                          "EDUARDA BORGES": "Departamento Pessoal",
+                          "LAYSA MALAGUTTI": "Onboarding"}},
         {"coordenador": "EULLER BOER", "departamento": "Departamento Pessoal",
          "membros": ["JENIFER GARCIA", "GABRIELA ROSSI"]},
         # Eduarda ("Duda") Zucchi passou para a equipe do Diesley em 26/08/2026 (3a troca
         # dela: Lucas -> Thaina em 11/08, Thaina -> Lucas em 24/08, Lucas -> Diesley agora).
-        # Cada pessoa entra em UMA equipe so — montar_equipes() usa o set `usados` e a
-        # primeira equipe da lista leva. Por isso o nome foi RETIRADO da equipe do Lucas
-        # logo abaixo, e nao duplicado aqui: nome em duas listas sumiria de uma delas sem
-        # aviso nenhum.
+        # A TROCA de equipe e feita TIRANDO o nome da equipe antiga e pondo na nova — foi o
+        # que se fez aqui, retirando-a da equipe do Lucas logo abaixo. Trocar NAO e duplicar:
+        # nome declarado em duas equipes aparece nas DUAS (montar_equipes() monta cada equipe
+        # de forma independente; o set `usados` so serve para saber quem ficou SEM equipe).
+        # Numa troca isso faria a pessoa continuar saindo no pacote do coordenador antigo.
+        # Duplicar so quando o usuario pedir de proposito, como no caso da Laysa acima.
         {"coordenador": "DIESLEY QUEIROZ", "departamento": "Fiscal/Contábil",
          "membros": ["STEPHANIE FERRAZ", "BIANCA ALVES", "JAIRO RAVASI", "MIGUEL MALAGUTTI",
                      "YASMIN RODRIGUES", "CARLA SEGHESSI", "EDUARDA STEFANI", "JULIA MATHIAS",
                      "NATÁLIA SANTOS", "SOPHIA MAGRI", "BEATRIZ PAPA", "EDUARDA ZUCCHI"]},
         # Katariny de Simone entrou em 15/08/2026 na triagem (mesma função da Laysa).
+        # Flavio Rosato saiu daqui em 01/09/2026: o usuário trocou a regra dele de "corte"
+        # para "total" — sai de TODA avaliação, inclusive dos meses em que trabalhou, igual
+        # à Graziela dos Anjos. Retirado desta lista para não virar AVISO de "declarado na
+        # equipe mas ausente da transcrição" em toda rodada. Ver DESLIGADOS logo abaixo.
+        # Com isso a equipe da Laysa fica com ela + Katariny.
         {"coordenador": "LAYSA MALAGUTTI", "departamento": "Suporte/Atendimento",
-         "membros": ["FLAVIO ROSATO", "KATARINY DE SIMONE"]},
+         "membros": ["KATARINY DE SIMONE"]},
         # Diretor: recebe a própria equipe E o consolidado da unidade inteira.
         #
         # Histórico do departamento desta equipe (não simplificar sem o usuário confirmar):
@@ -653,19 +682,22 @@ EQUIPES = {
 # Cada pessoa tem uma REGRA, e as duas nao sao a mesma coisa:
 #
 #   "total" - sai de TODA avaliacao, inclusive de periodos em que ainda tinha atendimento.
-#             Foi a decisao do usuario para a Graziele Anselmo e a Graziela dos Anjos.
+#             Foi a decisao do usuario para a Graziele Anselmo, a Graziela dos Anjos e,
+#             desde 01/09/2026, tambem para o FLAVIO ROSATO (antes ele era "corte").
 #
 #   "corte" - o que ela(e) fez ATE a data de saida continua valendo e deve ser avaliado
-#             normalmente; so nao entra em periodos que COMECAM depois da saida. Decisao do
-#             usuario para o Flavio Rosato em 24/08/2026. Por isso quem e "corte" CONTINUA
-#             declarado(a) em EQUIPES: numa rodada mensal de agosto/2026 o relatorio dele
-#             sai normal, com os atendimentos de 01 a 13/08.
+#             normalmente; so nao entra em periodos que COMECAM depois da saida. Quem e
+#             "corte" CONTINUA declarado(a) em EQUIPES, senao o relatorio nao sairia nos
+#             meses trabalhados.
+#             HOJE NINGUEM ESTA NESSA REGRA - o Flavio era o unico caso e virou "total" em
+#             01/09/2026, a pedido do usuario. A regra e o fora_por_corte() ficam de pe para
+#             o proximo caso; NAO apagar so porque a lista esta vazia.
 #
 # NAO apague o historico de quem e "corte" e NAO troque a regra sem o usuario mandar.
 DESLIGADOS = {
     "GRAZIELE ANSELMO":   {"saida": "08/08/2026", "regra": "total"},
     "GRAZIELA DOS ANJOS": {"saida": "24/08/2026", "regra": "total"},
-    "FLAVIO ROSATO":      {"saida": "24/08/2026", "regra": "corte"},
+    "FLAVIO ROSATO":      {"saida": "24/08/2026", "regra": "total"},
 }
 
 
@@ -696,6 +728,10 @@ def montar_equipes(unidade, team, periodo_ini=None):
     Quem está na transcrição mas não foi declarado em nenhuma equipe NÃO é descartado: entra
     só no pacote consolidado da unidade e é avisado no console, para a coordenação decidir.
     Abortar aqui quebraria a análise por causa de uma pessoa nova ou desligada no meio do mês.
+
+    Cada equipe é montada de forma INDEPENDENTE: quem estiver declarado(a) em duas equipes
+    sai nas duas (é o caso da Laysa, de propósito desde 07/09/2026). O set `usados` só marca
+    quem já entrou em alguma equipe, para calcular `sem_equipe` — ele não impede repetição.
     """
     div = EQUIPES.get((unidade or "").strip())
     if not div:

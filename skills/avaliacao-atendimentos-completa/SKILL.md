@@ -58,9 +58,10 @@ unidade e gera **um Resumo da Equipe próprio** — exatamente como o agente de 
   Ana Chueco, Julia Ribeiro, Leonardo Chueco, Natália Tiesi, Priscila de Pietro, Tiago Chueco.
 - **Monte Alto:** **todos os demais** colaboradores que **não** estão na lista de Taquaritinga
   (ex.: Euller Boer e os outros operadores do Gestta), **menos os desligados**: Graziele Anselmo
-  (desde 08/08/2026) e Graziela dos Anjos (desde 24/08/2026) — duas pessoas diferentes, confira a
-  grafia. **Flavio Rosato** (saída em 24/08/2026) é caso à parte: só sai de períodos que
-  **começam depois** dessa data; num mês que ele trabalhou, entra normalmente.
+  (desde 08/08/2026), Graziela dos Anjos (desde 24/08/2026) — duas pessoas diferentes, confira a
+  grafia — e **Flavio Rosato** (saída em 24/08/2026). Os três são regra **"total"**: nunca
+  marcar, em período nenhum, nem nos meses em que trabalharam. O Flavio era "corte" até
+  **01/09/2026**, quando o usuário mudou a regra dele; rodadas antigas saíram com ele.
   A tabela completa, com as regras, está no Passo 2 do `agente-leitura-conversas-corrigido`.
   Como a lista de Monte Alto é por **exclusão**, quem saiu continua sendo puxado do Gestta
   enquanto tiver atendimento no período: tem que ser tirado na mão, na seleção da Etapa 1.
@@ -91,7 +92,8 @@ Se o usuário pedir "a equipe inteira" sem dizer a unidade, **confirme qual unid
 > 50%; na semana 03–09/08/2026 uma colaboradora com UM atendimento tirou 3,0 e puxou a média da
 > unidade inteira). Nesses períodos o `analisar.py` gera um **levantamento**: mesmos 9 critérios,
 > mesmas contagens e os mesmos exemplos reais, mas **sem nota, sem média e sem ranking** — os
-> documentos saem como `Acompanhamento_<Colab>_<sufixo>` e `Acompanhamento_Equipe_<sufixo>`, e o
+> documentos saem como `Acompanhamento_<Colab>_<sufixo>`, `Acompanhamento_Equipe_<Coord>_<sufixo>`
+> e `Acompanhamento_Escritorio_<Cidade>_<sufixo>`, e o
 > zip como `Acompanhamento de atendimento de <Cidade> - <sufixo>`. **Nota só na avaliação mensal.**
 > Nada a configurar: o script decide pelo formato do `Período:` no cabeçalho da transcrição.
 
@@ -141,9 +143,15 @@ agrega **somente os colaboradores selecionados** (deixe isso claro no `periodo_l
   por média ponderada. **Semana/dia:** `Acompanhamento_<Colab>_<sufixo>.docx`, **sem nota** —
   levantamento do que foi observado em cada critério (ver o quadro no SKILL.md do agente de análise);
 - gerar **o documento da equipe** só com os colaboradores daquela unidade, identificando a unidade
-  no `periodo_label` (ex.: "Junho/2026 — Taquaritinga"). **Mensal:** `Resumo_Equipe_<MM-AAAA>.docx`
-  com média e ranking. **Semana/dia:** `Acompanhamento_Equipe_<sufixo>.docx`, com a tabela de
+  no `periodo_label` (ex.: "Junho/2026 — Taquaritinga"). **Mensal:**
+  `Resumo_Escritorio_<Cidade>_<MM-AAAA>.docx` com média e ranking da unidade inteira, mais um
+  `Resumo_Equipe_<Coord>_<MM-AAAA>.docx` por coordenador. **Semana/dia:**
+  `Acompanhamento_Escritorio_<Cidade>_<sufixo>.docx` (+ um por coordenador), com a tabela de
   indicadores por colaborador ordenada por volume de atendimentos — sem média e sem ranking;
+
+  O **resumo do escritório entra no pacote de TODOS os coordenadores**, não só no da diretoria
+  (decisão do Euller em 01/09/2026): o gestor precisa da média da unidade para comparar com a
+  equipe dele sem ter de pedir o pacote da diretoria.
 - **empacotar com um comando** (não montar zip à mão):
 
 ```

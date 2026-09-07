@@ -103,6 +103,10 @@ def main():
     prefixo = "Análise de atendimento" if mensal else "Acompanhamento de atendimento"
     pref_ind = "Relatorio" if mensal else "Acompanhamento"
     pref_eq = "Resumo_Equipe" if mensal else "Acompanhamento_Equipe"
+    # O consolidado do escritorio tem nome proprio: desde 01/09/2026 ele vai TAMBEM no pacote de
+    # cada coordenador, e "Resumo_Equipe_<mes>" ao lado de "Resumo_Equipe_<coord>_<mes>" nao dizia
+    # qual era qual na hora de abrir o zip.
+    pref_esc = "Resumo_Escritorio" if mensal else "Acompanhamento_Escritorio"
 
     saida = a.saida or os.path.join(os.path.expanduser("~"), "Downloads")
     os.makedirs(saida, exist_ok=True)
@@ -125,7 +129,7 @@ def main():
             sys.exit("ERRO: nenhum analise_*.json na pasta indicada.")
 
         # ---- 2. resumo da unidade + resumos por coordenador ----------------
-        resumo_unidade = os.path.join(tmp, f"{pref_eq}_{suf}.docx")
+        resumo_unidade = os.path.join(tmp, f"{pref_esc}_{safe(unidade)}_{suf}.docx")
         rodar(sys.executable, os.path.join(AQUI, "build_team_summary.py"), resumo_path, resumo_unidade)
 
         equipes = {}
@@ -177,10 +181,12 @@ def main():
                     continue
                 docs_eq = [individuais[m] for m in info["membros"] if m in individuais]
                 declarados.update(info["membros"])
+                # o resumo do escritorio vai junto para o gestor comparar a equipe dele com a
+                # media da unidade sem precisar pedir o pacote da diretoria
                 alvo = zipar(f"{prefixo} de {unidade} - {info['coordenador']} - {suf}.zip",
-                             docs_eq + [info["docx"]])
+                             docs_eq + [info["docx"], resumo_unidade])
                 print(f"  {info['coordenador']:24} {info['departamento']:34} "
-                      f"{len(docs_eq)} relatório(s) + resumo")
+                      f"{len(docs_eq)} relatório(s) + resumo da equipe + resumo do escritório")
             # diretoria: todos os individuais + resumo da unidade + os resumos de equipe
             todos = list(individuais.values()) + [resumo_unidade] + [i["docx"] for i in equipes.values()]
             zipar(f"{prefixo} de {unidade} (Diretoria) - {suf}.zip", todos)

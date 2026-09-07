@@ -5,7 +5,7 @@ Gera o RESUMO DA EQUIPE (.docx) — identidade visual Altocon (fundo branco, nav
 Inclui ranking, médias por critério e GRÁFICO DE BARRAS de atendimentos por colaborador.
 
 Uso:
-    python3 scripts/build_team_summary.py resumo_equipe.json "<saida>/Resumo_Equipe_<MM-AAAA>.docx"
+    python3 scripts/build_team_summary.py resumo_equipe.json "<saida>/Resumo_Escritorio_<Cidade>_<MM-AAAA>.docx"
 
 As médias por critério e o ranking são calculados aqui a partir de `colaboradores`.
 """
@@ -145,9 +145,12 @@ def build(data, out_path):
                    if acomp else f"Resumo da Equipe — {coord}")
         rot_cab = f"Equipe {coord}"
     else:
-        tit_doc = (f"Acompanhamento {per_nome} da Equipe — Atendimentos".replace("  ", " ")
-                   if acomp else "Resumo da Equipe — Análise de Atendimentos")
-        rot_cab = ("Acompanhamento da Equipe" if acomp else "Resumo da Equipe")
+        # "Escritório", não "Equipe": desde 01/09/2026 este consolidado vai junto no pacote de cada
+        # coordenador, ao lado do resumo da equipe dele — dois documentos chamados "Resumo da
+        # Equipe" no mesmo zip não diziam qual era qual.
+        tit_doc = (f"Acompanhamento {per_nome} do Escritório — Atendimentos".replace("  ", " ")
+                   if acomp else "Resumo do Escritório — Análise de Atendimentos")
+        rot_cab = ("Acompanhamento do Escritório" if acomp else "Resumo do Escritório")
 
     T.setup_header_footer(doc, f"{rot_cab}{(' — ' + periodo) if periodo else ''}")
 

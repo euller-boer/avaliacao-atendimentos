@@ -223,8 +223,9 @@ da transcrição — nada a configurar):
   produz JSONs idênticos aos da versão anterior (só entra a chave `periodo_tipo`) e os PDFs
   regerados batem **linha a linha** com o pacote já entregue.
 
-**Nomes dos arquivos no acompanhamento:** `Acompanhamento_<Colab>_<sufixo>.docx` e
-`Acompanhamento_Equipe_<sufixo>.docx` (em vez de `Relatorio_` / `Resumo_Equipe_`), e o zip sai como
+**Nomes dos arquivos no acompanhamento:** `Acompanhamento_<Colab>_<sufixo>.docx`,
+`Acompanhamento_Equipe_<Coord>_<sufixo>.docx` e `Acompanhamento_Escritorio_<Cidade>_<sufixo>.docx`
+(em vez de `Relatorio_` / `Resumo_Equipe_` / `Resumo_Escritorio_`), e o zip sai como
 `Acompanhamento de atendimento de <Cidade> - <sufixo>` — para não misturar com os pacotes mensais
 na pasta Downloads.
 
@@ -235,14 +236,14 @@ coordenadores que os pacotes vão. Vale para **mensal e acompanhamento** (semana
 
 | Coordenador | Departamento | Equipe |
 |---|---|---|
-| Thaina de Ponti | Departamento Pessoal | Eduarda Borges |
+| Thaina de Ponti | Departamento Pessoal e Onboarding | Eduarda Borges, **Laysa Malagutti** (entra aqui como *Onboarding*; também coordena a própria equipe) |
 | Euller Boer | Departamento Pessoal | Jenifer Garcia, Gabriela Rossi |
-| Diesley Queiroz | Fiscal/Contábil | Stephanie Ferraz, Bianca Alves, Jairo Ravasi, Miguel Malagutti, Yasmin Rodrigues, Carla Seghessi, Eduarda Stefani, Julia Mathias, Natália Santos, Sophia Magri, Beatriz Papa |
-| Laysa Malagutti | Suporte/Atendimento | Flavio Rosato, Katariny de Simone |
-| Lucas Malagutti (diretor) | Legal e Contábil | Ricardo Buzeto, Eduarda Zucchi **+ o consolidado da unidade inteira** |
+| Diesley Queiroz | Fiscal/Contábil | Stephanie Ferraz, Bianca Alves, Jairo Ravasi, Miguel Malagutti, Yasmin Rodrigues, Carla Seghessi, Eduarda Stefani, Julia Mathias, Natália Santos, Sophia Magri, Beatriz Papa, Eduarda Zucchi |
+| Laysa Malagutti | Suporte/Atendimento | Katariny de Simone |
+| Lucas Malagutti (diretor) | Legal | Ricardo Buzeto **+ o consolidado da unidade inteira** |
 
-> **Eduarda ("Duda") Zucchi — histórico de equipe.** Ela já trocou de equipe duas vezes; leia
-> os dois passos antes de mexer:
+> **Eduarda ("Duda") Zucchi — histórico de equipe.** Ela já trocou de equipe **três** vezes; leia
+> os três passos antes de mexer:
 >
 > 1. **11/08/2026** — saiu da equipe do **Lucas** (onde era **Financeiro**) e foi para a da
 >    **Thaina**. Como fazia **onboarding**, o departamento da equipe da Thaina virou
@@ -252,6 +253,10 @@ coordenadores que os pacotes vão. Vale para **mensal e acompanhamento** (semana
 >    departamento dela **voltou a ser "Departamento Pessoal"** — o "/Onboarding" existia por
 >    causa da Duda. A equipe do Lucas passou a **"Legal e Contábil"**, porque o Ricardo
 >    continua no Legal. Ambas as etiquetas foram confirmadas com o usuário.
+> 3. **26/08/2026** — **foi para a equipe do Diesley** (Fiscal/Contábil), onde está hoje. Com
+>    isso a equipe do Lucas voltou a ser **só "Legal"** (o "Contábil" existia por causa dela) e
+>    ficou com Lucas + Ricardo Buzeto. **É este o estado atual do `EQUIPES` no `analisar.py`** —
+>    a tabela acima já reflete isso.
 >
 > ⚠️ O **"Contábil" da equipe do Lucas não é o "Fiscal/Contábil" da equipe do Diesley** — são
 > equipes diferentes. E **"Duda" = Eduarda Zucchi**, não confundir com **Eduarda Borges**
@@ -267,24 +272,52 @@ coordenadores que os pacotes vão. Vale para **mensal e acompanhamento** (semana
 > ⚠️ **São duas pessoas diferentes:** Graziel**e** Anselmo (Monte Alto, sem equipe declarada) e
 > Graziel**a** dos Anjos (Monte Alto, equipe da Thaina). Confira a grafia antes de tirar alguém.
 
-> **Flavio Rosato** desligou-se em **24/08/2026**, com regra **diferente**: o usuário decidiu
-> "tirar só daqui pra frente". O que ele fez até sair **continua valendo e deve ser avaliado** —
-> numa rodada mensal de agosto/2026 o relatório dele sai normal, com os atendimentos de 01 a
-> 13/08. Por isso ele **continua declarado em `EQUIPES`**, na equipe da Laysa. Só períodos que
-> **começam depois de 24/08/2026** é que não devem mais trazer o nome dele.
+> **Flavio Rosato** desligou-se em **24/08/2026** e, **desde 01/09/2026, é "total"** como a
+> Graziele e a Graziela: **não entra em avaliação nenhuma**, nem nos meses em que trabalhou, nem
+> no consolidado da unidade. O usuário mudou a regra dele nessa data — até então era "corte"
+> (o histórico até a saída continuava valendo). Por isso ele **foi retirado de `EQUIPES`**: quem
+> é "total" declarado na equipe vira AVISO de "declarado mas ausente" em toda rodada.
 >
-> Na prática: `DESLIGADOS` agora guarda `{"saida": ..., "regra": ...}`, com `"total"` (Graziele e
-> Graziela — saem de tudo) e `"corte"` (Flavio — sai só daqui pra frente). `fora_por_corte()`
-> compara a saída com `hdr["periodo_ini"]` e evita que ele vire AVISO de "declarado mas ausente"
-> em toda rodada. **Não apague o histórico de quem é "corte".**
+> ⚠️ **Rodadas antigas não batem mais com o código.** Os pacotes de períodos até 31/08/2026 que
+> já foram entregues saíram **com** o Flavio (ex.: a rodada mensal de agosto/2026 tinha o
+> relatório dele e a média da unidade o incluía). Refazer um período antigo hoje dá números
+> diferentes — isso é esperado, não é defeito.
+>
+> Na prática: `DESLIGADOS` guarda `{"saida": ..., "regra": ...}`, e os três nomes agora são
+> `"total"`. A regra `"corte"` e a função `fora_por_corte()` **continuam no código**, sem ninguém
+> usando, prontas para o próximo caso — não apague.
 >
 > Com a saída dele a **equipe da Laysa fica só com a Katariny** — conferir com a coordenação se
 > alguém assumiu a vaga.
 
+> **Laysa Malagutti aparece em DUAS equipes (desde 07/09/2026).** A pedido do usuário, ela é
+> avaliada pela **Thaina** e **continua coordenando a própria equipe**. Na prática o nome dela
+> está declarado nas duas listas do `EQUIPES`, e o resultado é:
+>
+> - o pacote da **Thaina** passa a ter `Relatorio_Laysa_Malagutti` + a linha dela no resumo da
+>   equipe (a equipe da Thaina vai de 2 para 3 pessoas), e o departamento dessa equipe passa a
+>   ser **"Departamento Pessoal e Onboarding"** — rótulo informado pelo usuário, não deduzido:
+>   na equipe da Thaina a Laysa entra como **Onboarding**, e na equipe DELA continua como
+>   **Suporte/Atendimento**. São dois papéis, um em cada documento;
+> - o pacote da **Laysa** continua igual: Laysa + Katariny;
+> - **a Katariny NÃO vai para a Thaina** — só a Laysa;
+> - **nada muda nos números**: média geral, ranking e médias por critério são da UNIDADE
+>   inteira, calculados sobre a lista completa da transcrição, não sobre as equipes. Conferido
+>   em agosto/2026: média 8,5 e 21 colaboradores antes e depois, e todos os outros JSONs
+>   idênticos byte a byte.
+>
+> ⚠️ O **"Onboarding" daqui não é o antigo "Departamento Pessoal/Onboarding"** (11/08 a
+> 24/08/2026), que existia por causa da Eduarda ("Duda") Zucchi — ela está na equipe do Diesley
+> desde 26/08/2026.
+>
+> ⚠️ Este é o **único** caso de nome declarado de propósito em duas equipes. Uma **troca** de
+> equipe continua sendo TIRAR da lista antiga e pôr na nova — se o nome ficar nas duas, a pessoa
+> passa a sair nos dois pacotes, calada.
+
 Regras decididas junto com a divisão:
 
 - **O coordenador é avaliado e a nota dele sai na lista da própria equipe** — o documento da
-  equipe da Thaina traz Thaina e Eduarda Borges.
+  equipe da Thaina traz Thaina, Eduarda Borges e (desde 07/09/2026) Laysa Malagutti.
 - **Média geral, ranking e médias por critério continuam da UNIDADE INTEIRA.** Só a LISTA de
   pessoas é recortada. A coluna "#" mostra a posição no ranking de Monte Alto (ex.: "21º"), com
   uma linha explicando isso logo acima da tabela — senão o coordenador leria como colocação

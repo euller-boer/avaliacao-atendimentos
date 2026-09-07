@@ -81,11 +81,12 @@ Gestta com atendimentos no período:
 |---|---|---|---|
 | Graziele Anselmo | Monte Alto | 08/08/2026 | **Total** — nunca marcar, em período nenhum |
 | Graziela dos Anjos | Monte Alto | 24/08/2026 | **Total** — nunca marcar, em período nenhum |
-| Flavio Rosato | Monte Alto (equipe da Laysa) | 24/08/2026 | **Corte** — não marcar em períodos que COMEÇAM depois de 24/08/2026; períodos que incluem dias trabalhados por ele são lidos e avaliados normalmente |
+| Flavio Rosato | Monte Alto (era da equipe da Laysa) | 24/08/2026 | **Total** — nunca marcar, em período nenhum (era "Corte" até 01/09/2026; o usuário mudou para Total nessa data) |
 
 > **As duas regras não são a mesma coisa.** "Total" apaga a pessoa da avaliação mesmo onde ela
-> ainda tinha atendimento. "Corte" preserva o que a pessoa fez até sair — o Flavio, por exemplo,
-> tem 17 atendimentos em 10–14/08/2026 que **continuam valendo** e devem sair no relatório dele.
+> ainda tinha atendimento. "Corte" preserva o que a pessoa fez até sair, e só para de trazer o
+> nome em períodos que começam depois da saída. **Hoje os três da tabela são "Total"** — ninguém
+> está em "Corte"; a regra fica de pé para o próximo caso.
 > Na dúvida, pergunte ao usuário antes de tirar alguém de um período já trabalhado.
 
 ⚠️ São **duas pessoas diferentes**, não é o mesmo nome repetido — confira a grafia (Graziel**e**
