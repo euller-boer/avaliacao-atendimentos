@@ -1512,7 +1512,7 @@ def escrever_resumos_equipe(outdir, hdr, team, equipes, acomp, media=None, rank=
                     "Substituir \"vou verificar\"/\"vou analisar\" por prazo claro e fixo (ex.: \"em 2 dias úteis\").",
                     "Reduzir transferências sem conclusão: esgotar a solução na própria célula antes de repassar."],
                 "conclusao": (
-                    f"Este levantamento cobre a equipe de {coord} ({depto}) em {hdr['periodo_nome']} e serve "
+                    f"Este levantamento cobre a equipe de {coord} ({depto}) {hdr['periodo_frase']} e serve "
                     f"para acompanhar o andamento entre os fechamentos mensais. A avaliação com nota, ranking "
                     f"e média é feita no fechamento do mês, sobre a unidade inteira.")})
         else:
@@ -1543,7 +1543,7 @@ def escrever_resumos_equipe(outdir, hdr, team, equipes, acomp, media=None, rank=
                     "Substituir \"vou verificar\"/\"vou analisar\" por prazo claro e fixo (ex.: \"em 2 dias úteis\").",
                     "Reduzir transferências sem conclusão: esgotar a solução na própria célula antes de repassar."],
                 "conclusao": (
-                    f"Este resumo cobre a equipe de {coord} ({depto}) em {hdr['periodo_nome']}. A média e o "
+                    f"Este resumo cobre a equipe de {coord} ({depto}) {hdr['periodo_frase']}. A média e o "
                     f"ranking são da unidade {unidade} inteira, para manter a comparação com os demais "
                     f"pacotes. Os relatórios individuais anexos detalham o plano de melhoria de cada um.")})
         safe = re.sub(r"[^A-Za-z0-9]+", "_", coord).strip("_")
