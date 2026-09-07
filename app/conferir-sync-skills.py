@@ -10,6 +10,10 @@ DESK = ("\\\\?\\C:\\Users\\atend\\AppData\\Local\\Packages\\Claude_pzs8sxrjxfjjc
 ALVOS = [
     ("agente-analise-atendimento-corrigido", "scripts/analisar.py"),
     ("agente-analise-atendimento-corrigido", "scripts/build_team_summary.py"),
+    # empacotar.py faltava aqui ate 07/09/2026 - e por isso a conferencia dizia "tudo
+    # identico" enquanto o desktop estava parado na versao de 11/08, sem o resumo do
+    # escritorio no pacote de cada coordenador. Ao criar script novo, incluir na lista.
+    ("agente-analise-atendimento-corrigido", "scripts/empacotar.py"),
     ("agente-analise-atendimento-corrigido", "scripts/build_report.py"),
     ("agente-analise-atendimento-corrigido", "scripts/docx_theme.py"),
     ("agente-analise-atendimento-corrigido", "SKILL.md"),
