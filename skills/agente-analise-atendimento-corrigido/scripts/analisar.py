@@ -629,10 +629,24 @@ EQUIPES = {
         # de forma independente; o set `usados` so serve para saber quem ficou SEM equipe).
         # Numa troca isso faria a pessoa continuar saindo no pacote do coordenador antigo.
         # Duplicar so quando o usuario pedir de proposito, como no caso da Laysa acima.
+        #
+        # ALEXANDER MICHEL GARCIA e KAMILLY VITORIA entram aqui em 12/09/2026: contratados para
+        # esta equipe, no MESMO departamento dela (Fiscal/Contabil, confirmado pelo usuario) —
+        # por isso a equipe NAO virou mista e NAO ganhou `depto_membro`.
+        # Os nomes foram informados pelo usuario; se a transcricao do Gestta trouxer grafia
+        # diferente (sobrenome a mais, "KAMILLY VITORIA" com acento em VITORIA, "KAMILY" com um
+        # L), montar_equipes() nao casa o nome: o relatorio deles NAO sai no pacote do Diesley e
+        # o console avisa "declarado(s) na equipe de DIESLEY QUEIROZ mas ausente(s) na
+        # transcricao". A correcao e ajustar o nome AQUI para o que esta na transcricao — nunca
+        # editar a transcricao, que faz ler_cabecalho()/parse() abortarem.
+        # Em periodos ANTERIORES a contratacao os dois viram esse mesmo aviso, e isso e esperado:
+        # nao existe regra de ADMISSAO no codigo (o espelho do fora_por_corte() para quem entra),
+        # so a de desligamento. Se o aviso incomodar em rodadas retroativas, ai sim vale criar.
         {"coordenador": "DIESLEY QUEIROZ", "departamento": "Fiscal/Contábil",
          "membros": ["STEPHANIE FERRAZ", "BIANCA ALVES", "JAIRO RAVASI", "MIGUEL MALAGUTTI",
                      "YASMIN RODRIGUES", "CARLA SEGHESSI", "EDUARDA STEFANI", "JULIA MATHIAS",
-                     "NATÁLIA SANTOS", "SOPHIA MAGRI", "BEATRIZ PAPA", "EDUARDA ZUCCHI"]},
+                     "NATÁLIA SANTOS", "SOPHIA MAGRI", "BEATRIZ PAPA", "EDUARDA ZUCCHI",
+                     "ALEXANDER MICHEL GARCIA", "KAMILLY VITORIA"]},
         # Katariny de Simone entrou em 15/08/2026 na triagem (mesma função da Laysa).
         # Flavio Rosato saiu daqui em 01/09/2026: o usuário trocou a regra dele de "corte"
         # para "total" — sai de TODA avaliação, inclusive dos meses em que trabalhou, igual

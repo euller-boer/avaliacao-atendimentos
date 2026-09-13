@@ -238,7 +238,7 @@ coordenadores que os pacotes vão. Vale para **mensal e acompanhamento** (semana
 |---|---|---|
 | Thaina de Ponti | Departamento Pessoal e Onboarding | Eduarda Borges, **Laysa Malagutti** (entra aqui como *Onboarding*; também coordena a própria equipe) |
 | Euller Boer | Departamento Pessoal | Jenifer Garcia, Gabriela Rossi |
-| Diesley Queiroz | Fiscal/Contábil | Stephanie Ferraz, Bianca Alves, Jairo Ravasi, Miguel Malagutti, Yasmin Rodrigues, Carla Seghessi, Eduarda Stefani, Julia Mathias, Natália Santos, Sophia Magri, Beatriz Papa, Eduarda Zucchi |
+| Diesley Queiroz | Fiscal/Contábil | Stephanie Ferraz, Bianca Alves, Jairo Ravasi, Miguel Malagutti, Yasmin Rodrigues, Carla Seghessi, Eduarda Stefani, Julia Mathias, Natália Santos, Sophia Magri, Beatriz Papa, Eduarda Zucchi, **Alexander Michel Garcia**, **Kamilly Vitoria** (contratados, entram em 12/09/2026) |
 | Laysa Malagutti | Suporte/Atendimento | Katariny de Simone |
 | Lucas Malagutti (diretor) | Legal | Ricardo Buzeto **+ o consolidado da unidade inteira** |
 
@@ -313,6 +313,30 @@ coordenadores que os pacotes vão. Vale para **mensal e acompanhamento** (semana
 > ⚠️ Este é o **único** caso de nome declarado de propósito em duas equipes. Uma **troca** de
 > equipe continua sendo TIRAR da lista antiga e pôr na nova — se o nome ficar nas duas, a pessoa
 > passa a sair nos dois pacotes, calada.
+
+> **Alexander Michel Garcia e Kamilly Vitoria entram na equipe do Diesley (12/09/2026).** Dois
+> colaboradores **contratados** — não é troca de equipe, então ninguém sai de lista nenhuma. Vão
+> para o **mesmo departamento da equipe (Fiscal/Contábil)**, confirmado pelo usuário: por isso a
+> equipe **não** virou mista e **não** ganhou `depto_membro`. A equipe do Diesley vai de 12 para
+> **14 membros** (15 pessoas no documento, contando o coordenador).
+>
+> **Nada precisou mudar no agente de leitura.** A lista de Monte Alto é **por exclusão** (todos
+> que não são de Taquaritinga), então os dois já são marcados e lidos sozinhos. Só o `EQUIPES` do
+> `analisar.py` é declarado na mão — é o que foi editado.
+>
+> ⚠️ **Confira a grafia do nome na PRIMEIRA rodada.** Os nomes acima vieram do usuário, não da
+> transcrição. Se o Gestta trouxer grafia diferente — sobrenome a mais, "Vitória" com acento,
+> "Kamily" com um L — `montar_equipes()` não casa o nome: o relatório deles **não sai** no pacote
+> do Diesley e o console avisa *"declarado(s) na equipe de DIESLEY QUEIROZ mas ausente(s) na
+> transcrição"*. A correção é ajustar o nome **no `EQUIPES`**, nunca na transcrição (editá-la faz
+> `ler_cabecalho()`/`parse()` abortarem).
+>
+> ⚠️ Em rodadas de **períodos anteriores** à contratação os dois aparecem nesse mesmo aviso, e
+> isso é **esperado**: não existe regra de ADMISSÃO no código — só a de desligamento
+> (`DESLIGADOS` / `fora_por_corte()`). Nenhum número muda por causa do aviso.
+>
+> ⚠️ **Alexander Michel Garcia** não tem parentesco declarado com **Jenifer Garcia** (equipe do
+> Euller) — mesmo sobrenome, equipes diferentes, não confundir na hora de mexer nas listas.
 
 Regras decididas junto com a divisão:
 
