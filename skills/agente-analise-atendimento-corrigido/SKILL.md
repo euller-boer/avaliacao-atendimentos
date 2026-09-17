@@ -122,6 +122,9 @@ logo em seguida.
   `"ANA CHUECO"` (Taquaritinga, incluída em 10/08/2026) e `"KATARINY DE SIMONE"` (Monte Alto,
   incluída em 15/08/2026). Adicionar o nome (MAIÚSCULO, igual ao bloco de integridade) aqui
   quando outro colaborador tiver essa função — **decisão da coordenação, não decidir sozinho**.
+  ⚠️ **Sair do escritório NÃO tira o nome desta lista.** A Katariny saiu em 04/09/2026 e o nome
+  dela continua aqui de propósito: a lista ainda é usada nas rodadas retroativas (critério 6
+  dela) e nas rodadas novas (regra 3.3 dos colegas que devolveram chamado para a triagem dela).
 - Base = atendimentos concluídos diretamente + atendimentos repassados por ela.
 - "Rota errada" = o colega que recebeu precisou repassar de novo o MESMO atendimento em até
   24h (`TRIAGEM_JANELA_REBOTE_MIN`). Acerto = base menos essas correções.
@@ -133,8 +136,8 @@ logo em seguida.
   de como a transcrição agrupa os atendimentos).
 - Em julho/2026 a única afetada em Monte Alto era a Laysa: confirmado que rodar com/sem a regra
   dá resultado idêntico para os outros 23. **Katariny de Simone** entrou na triagem de Monte Alto
-  em 15/08/2026, então a partir de agosto/2026 a exceção passa a valer também para ela — sem
-  histórico ainda, o efeito no relatório dela só dá para conferir na 1ª rodada com dados.
+  em 15/08/2026, então de agosto/2026 até a saída dela (**04/09/2026**) a exceção vale também
+  para ela. Em agosto ela fez 1.159 atendimentos e 678 repasses como origem.
 
 ## Critério 8 — "Transformar o Não em Busca por Soluções" (revisão 07/08/2026)
 
@@ -236,11 +239,14 @@ coordenadores que os pacotes vão. Vale para **mensal e acompanhamento** (semana
 
 | Coordenador | Departamento | Equipe |
 |---|---|---|
-| Thaina de Ponti | Departamento Pessoal e Onboarding | Eduarda Borges, **Laysa Malagutti** (entra aqui como *Onboarding*; também coordena a própria equipe) |
+| Thaina de Ponti | Departamento Pessoal e Onboarding | Eduarda Borges, **Laysa Malagutti** (entra aqui como *Onboarding*) |
 | Euller Boer | Departamento Pessoal | Jenifer Garcia, Gabriela Rossi |
 | Diesley Queiroz | Fiscal/Contábil | Stephanie Ferraz, Bianca Alves, Jairo Ravasi, Miguel Malagutti, Yasmin Rodrigues, Carla Seghessi, Eduarda Stefani, Julia Mathias, Natália Santos, Sophia Magri, Beatriz Papa, Eduarda Zucchi, **Alexander Michel Garcia**, **Kamilly Vitoria** (contratados, entram em 12/09/2026) |
-| Laysa Malagutti | Suporte/Atendimento | Katariny de Simone |
 | Lucas Malagutti (diretor) | Legal | Ricardo Buzeto **+ o consolidado da unidade inteira** |
+
+> A equipe **Suporte/Atendimento (Laysa Malagutti)** saiu desta tabela: foi **encerrada em
+> 17/09/2026**, quando a Katariny de Simone — sua última integrante — deixou o escritório.
+> Ver o bloco "Katariny de Simone" mais abaixo.
 
 > **Eduarda ("Duda") Zucchi — histórico de equipe.** Ela já trocou de equipe **três** vezes; leia
 > os três passos antes de mexer:
@@ -283,24 +289,60 @@ coordenadores que os pacotes vão. Vale para **mensal e acompanhamento** (semana
 > relatório dele e a média da unidade o incluía). Refazer um período antigo hoje dá números
 > diferentes — isso é esperado, não é defeito.
 >
-> Na prática: `DESLIGADOS` guarda `{"saida": ..., "regra": ...}`, e os três nomes agora são
-> `"total"`. A regra `"corte"` e a função `fora_por_corte()` **continuam no código**, sem ninguém
-> usando, prontas para o próximo caso — não apague.
+> Na prática: `DESLIGADOS` guarda `{"saida": ..., "regra": ...}`. Graziele, Graziela e Flavio são
+> `"total"`; a **Katariny de Simone é `"corte"`** desde 17/09/2026 (ver bloco abaixo) — a regra
+> `"corte"` e a função `fora_por_corte()` voltaram a ter uso.
 >
-> Com a saída dele a **equipe da Laysa fica só com a Katariny** — conferir com a coordenação se
-> alguém assumiu a vaga.
+> Com a saída dele a equipe da Laysa ficou só com a Katariny — e foi **encerrada em 17/09/2026**,
+> quando ela também saiu.
 
-> **Laysa Malagutti aparece em DUAS equipes (desde 07/09/2026).** A pedido do usuário, ela é
-> avaliada pela **Thaina** e **continua coordenando a própria equipe**. Na prática o nome dela
-> está declarado nas duas listas do `EQUIPES`, e o resultado é:
+> **Katariny de Simone saiu do escritório em 04/09/2026 — regra "corte"** (decisão do usuário em
+> 17/09/2026). **Não é igual à Graziela e ao Flavio:**
+>
+> - ela **não é mais trazida** em nenhum período que **comece depois de 04/09/2026** — não
+>   aparece em mensagem nem em relatório das rodadas novas;
+> - o que ela fez **até 04/09/2026 continua valendo e é avaliado normalmente**. Os pacotes de
+>   agosto/2026 e das semanas anteriores **continuam batendo** com o que já foi entregue — foi
+>   justamente para isso que a regra escolhida foi "corte" e não "total". Em agosto ela tem
+>   **1.159 atendimentos** (a 2ª maior da unidade): apagá-los mudaria a base de 4.554 para ~3.395
+>   e alteraria os relatórios já entregues.
+>
+> ⚠️ **O nome dela FICA em `PAPEL_TRIAGEM`. Não tirar.** Ela era da triagem, e a lista é usada
+> em dois momentos: (1) nas rodadas retroativas, para o critério 6 dela ser medido pela régua de
+> direcionamento, e não por "resolveu sem repassar"; (2) nas rodadas novas, em que ela nem
+> aparece — os carimbos "transferido por Katariny para X" continuam dentro dos atendimentos de
+> quem **recebeu** (678 só em agosto), e a regra 3.3 usa a lista para perdoar o colega que
+> devolveu um chamado para a triagem.
+>
+> Efeito colateral **medido e aceito** (17/09/2026): com ela fora da transcrição, a regra 3.1
+> deixa de enxergar as instruções dela ("depois direcionar para X"), porque essa regra só lê
+> carimbo de quem está na transcrição. São **5 casos em todo o mês de agosto** — 1 para cada:
+> Beatriz Papa, Carla Seghessi, Jairo Ravasi, Natália Santos e Stephanie Ferraz.
+>
+> ⚠️ **Rodada retroativa (agosto e antes):** como a equipe da Laysa foi encerrada, a Katariny
+> não tem mais coordenador declarado. Ela continua sendo avaliada, mas sai **só no consolidado
+> da unidade**, sem pacote de coordenador, e o console avisa "sem equipe". Para devolver o
+> pacote da Laysa numa rodada antiga, **descomente as duas linhas** do bloco dela em `EQUIPES`
+> (o `analisar.py` deixa a linha pronta, com o histórico) e comente de novo depois.
+
+> **Laysa Malagutti esteve em DUAS equipes de 07/09/2026 a 17/09/2026 — hoje está em UMA só.**
+> Com o encerramento da equipe dela (Suporte/Atendimento), o nome ficou declarado **apenas na
+> equipe da Thaina**, e o relatório dela sai **uma vez**, no pacote da Thaina. O histórico
+> abaixo explica os pacotes entregues nesse intervalo e volta a valer se a equipe dela for
+> reativada.
+>
+> A pedido do usuário, ela passou a ser avaliada pela **Thaina** e, na época, **continuava
+> coordenando a própria equipe**. O nome estava declarado nas duas listas do `EQUIPES`, e o
+> resultado era:
 >
 > - o pacote da **Thaina** passa a ter `Relatorio_Laysa_Malagutti` + a linha dela no resumo da
 >   equipe (a equipe da Thaina vai de 2 para 3 pessoas), e o departamento dessa equipe passa a
 >   ser **"Departamento Pessoal e Onboarding"** — rótulo informado pelo usuário, não deduzido:
 >   na equipe da Thaina a Laysa entra como **Onboarding**, e na equipe DELA continua como
 >   **Suporte/Atendimento**. São dois papéis, um em cada documento;
-> - o pacote da **Laysa** continua igual: Laysa + Katariny;
-> - **a Katariny NÃO vai para a Thaina** — só a Laysa;
+> - o pacote da **Laysa** continuava igual: Laysa + Katariny (esse pacote **não existe mais**
+>   desde 17/09/2026 — a equipe foi encerrada);
+> - **a Katariny NUNCA foi para a Thaina** — só a Laysa. Ela saiu do escritório em 04/09/2026;
 > - **nada muda nos números**: média geral, ranking e médias por critério são da UNIDADE
 >   inteira, calculados sobre a lista completa da transcrição, não sobre as equipes. Conferido
 >   em agosto/2026: média 8,5 e 21 colaboradores antes e depois, e todos os outros JSONs

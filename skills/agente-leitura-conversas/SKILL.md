@@ -82,11 +82,23 @@ Gestta com atendimentos no período:
 | Graziele Anselmo | Monte Alto | 08/08/2026 | **Total** — nunca marcar, em período nenhum |
 | Graziela dos Anjos | Monte Alto | 24/08/2026 | **Total** — nunca marcar, em período nenhum |
 | Flavio Rosato | Monte Alto (era da equipe da Laysa) | 24/08/2026 | **Total** — nunca marcar, em período nenhum (era "Corte" até 01/09/2026; o usuário mudou para Total nessa data) |
+| Katariny de Simone | Monte Alto (triagem, era da equipe da Laysa) | 04/09/2026 | **Corte** — não marcar em período que COMECE depois de 04/09/2026. Em período que inclua dias até 04/09 (agosto, por ex.) ela É marcada e avaliada normalmente |
 
 > **As duas regras não são a mesma coisa.** "Total" apaga a pessoa da avaliação mesmo onde ela
 > ainda tinha atendimento. "Corte" preserva o que a pessoa fez até sair, e só para de trazer o
-> nome em períodos que começam depois da saída. **Hoje os três da tabela são "Total"** — ninguém
-> está em "Corte"; a regra fica de pé para o próximo caso.
+> nome em períodos que começam depois da saída. **Graziele, Graziela e Flavio são "Total";
+> a Katariny de Simone é "Corte"** (decisão do usuário em 17/09/2026).
+>
+> ⚠️ **Katariny — o que isso muda na prática.** Em rodada NOVA (período começando depois de
+> 04/09/2026) ela **não é marcada**, como os outros três. Mas em rodada de período que inclua
+> dias até 04/09 — agosto/2026, por exemplo — ela **TEM de ser marcada**: são 1.159
+> atendimentos só em agosto, e tirá-los mudaria relatórios já entregues. Na dúvida, marque e
+> pergunte; o `analisar.py` avisa no console se o nome vier num período em que não devia.
+>
+> ⚠️ **O login do Gestta é COMPARTILHADO com a Graziele Anselmo** (mesmo `_id`
+> `6532e087abf7b7000795eff6`, dois nomes — são **pessoas diferentes**). Selecione por **NOME**,
+> nunca pelo `_id`: em agosto, o que está sob "Graziele Anselmo" sai (Total) e o que está sob
+> "Katariny de Simone" fica (Corte). Desmarcar o `_id` inteiro derrubaria os dois.
 > Na dúvida, pergunte ao usuário antes de tirar alguém de um período já trabalhado.
 
 ⚠️ São **duas pessoas diferentes**, não é o mesmo nome repetido — confira a grafia (Graziel**e**

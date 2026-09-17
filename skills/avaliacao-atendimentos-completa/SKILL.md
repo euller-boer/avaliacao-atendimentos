@@ -62,6 +62,12 @@ unidade e gera **um Resumo da Equipe próprio** — exatamente como o agente de 
   grafia — e **Flavio Rosato** (saída em 24/08/2026). Os três são regra **"total"**: nunca
   marcar, em período nenhum, nem nos meses em que trabalharam. O Flavio era "corte" até
   **01/09/2026**, quando o usuário mudou a regra dele; rodadas antigas saíram com ele.
+  — e também **Katariny de Simone** (saída em **04/09/2026**), que é regra **"corte"**, NAO
+  "total": **não marcar** em período que comece depois de 04/09/2026, mas **marcar normalmente**
+  em período que inclua dias até essa data (agosto/2026, por exemplo). ⚠️ O login dela no Gestta
+  é o mesmo `_id` da Graziele Anselmo, com dois nomes: selecione por **NOME**, nunca pelo `_id`.
+  ⚠️ A **equipe Suporte/Atendimento (Laysa Malagutti) foi encerrada em 17/09/2026** com a saída
+  dela: não sai mais esse pacote, e a Laysa é avaliada dentro da equipe da Thaina.
   A tabela completa, com as regras, está no Passo 2 do `agente-leitura-conversas-corrigido`.
   Como a lista de Monte Alto é por **exclusão**, quem saiu continua sendo puxado do Gestta
   enquanto tiver atendimento no período: tem que ser tirado na mão, na seleção da Etapa 1.

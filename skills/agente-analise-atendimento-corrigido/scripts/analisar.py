@@ -418,8 +418,23 @@ def parse(lines, tot_map):
 # resolutividade — pela regra comum ela levava 7,0 em julho/2026 (69% "sem repasse").
 # Katariny de Simone incluída em 15/08/2026 (coordenação): entrou nesta semana em Monte Alto,
 # na equipe da Laysa (Suporte/Atendimento), com a MESMA função de receber e direcionar — por
-# isso a regra da Laysa vale pra ela desde o primeiro mês. Ainda sem histórico avaliado; se o
-# nome no Gestta vier diferente de "Katariny de Simone", ajustar aqui (o casamento é por nome).
+# isso a regra da Laysa vale pra ela desde o primeiro mês. Se o nome no Gestta vier diferente
+# de "Katariny de Simone", ajustar aqui (o casamento é por nome).
+# ELA SAIU DO ESCRITÓRIO EM 04/09/2026 (regra "corte" — ver DESLIGADOS) E O NOME FICA AQUI DE
+# PROPÓSITO. NÃO TIRAR. Duas razões, as duas medidas na transcrição de 08/2026:
+#   1. rodada RETROATIVA: em agosto ela tem 1.159 atendimentos e é avaliada normalmente. Tirar
+#      o nome daqui faria o critério 6 dela ser medido por "resolveu sem repassar" — a régua
+#      errada para quem tem a função de direcionar — e a nota dela cairia sem motivo real;
+#   2. rodada NOVA, em que ela nem aparece: os carimbos "transferido por Katariny para X"
+#      continuam dentro dos atendimentos de quem RECEBEU (são 678 só em agosto). A regra 3.3
+#      ("chegou errado") lê TODAS as entradas, inclusive de quem está fora da avaliação, e usa
+#      esta lista para decidir a exceção do chamado devolvido a quem mandou: devolver para a
+#      triagem continua sendo redirecionar, e é perdoado. Sem o nome aqui, colega que devolveu
+#      um chamado para ela perderia o perdão e levaria nota mais baixa por isso.
+# Efeito colateral já medido e ACEITO: com ela fora da transcrição, o parser não enxerga mais
+# as INSTRUÇÕES dela ("depois direcionar para X") na regra 3.1, porque essa regra só lê carimbo
+# de quem está na transcrição. São 5 casos em todo o mês de agosto (1 para cada: Beatriz Papa,
+# Carla Seghessi, Jairo Ravasi, Natália Santos, Stephanie Ferraz) — medido em 17/09/2026.
 PAPEL_TRIAGEM = {"LAYSA MALAGUTTI", "ANA CHUECO", "KATARINY DE SIMONE"}
 TRIAGEM_JANELA_REBOTE_MIN = 24 * 60  # janela p/ considerar que o destino corrigiu a rota
 
@@ -596,12 +611,16 @@ EQUIPES = {
         # a Graziele Anselmo. Tirada daqui para nao virar AVISO de "declarada mas ausente da
         # transcricao" em toda rodada. Ver DESLIGADOS logo abaixo.
         #
-        # LAYSA MALAGUTTI entra aqui desde 07/09/2026, a pedido do usuario: ela e avaliada
-        # pela Thaina E continua coordenando a propria equipe (Suporte/Atendimento, logo
-        # abaixo). E o UNICO caso de nome declarado em DUAS equipes de proposito — a Katariny
-        # NAO vem junto, so a Laysa. Efeito: o relatorio individual da Laysa e a linha dela
-        # saem nos DOIS pacotes (o da Thaina e o dela). Media, ranking e medias por criterio
-        # nao mudam: sao da UNIDADE inteira, calculados sobre `team`, nao sobre as equipes.
+        # LAYSA MALAGUTTI entra aqui desde 07/09/2026, a pedido do usuario: ela passou a ser
+        # avaliada pela Thaina e, na epoca, continuava coordenando a propria equipe
+        # (Suporte/Atendimento). Era o UNICO caso de nome declarado em DUAS equipes de
+        # proposito, e o relatorio dela saia nos DOIS pacotes.
+        # DESDE 17/09/2026 NAO E MAIS DUPLICADO: a equipe dela foi encerrada (bloco comentado
+        # mais abaixo, com o historico), entao a Laysa esta declarada SO aqui e o relatorio
+        # dela sai UMA vez, neste pacote. Se a equipe dela for reativada, a duplicacao volta —
+        # e isso e o esperado, nao um defeito.
+        # Media, ranking e medias por criterio nao mudam em nenhum dos dois casos: sao da
+        # UNIDADE inteira, calculados sobre `team`, nao sobre as equipes.
         # A equipe virou MISTA por causa disso — dai o rotulo composto e o `depto_membro`,
         # mesmo recurso ja usado na equipe do Lucas (build_team_summary.py imprime
         # "Departamentos da equipe: ..."). Chaves em MAIUSCULO, iguais ao bloco de integridade.
@@ -633,8 +652,10 @@ EQUIPES = {
         # ALEXANDER MICHEL GARCIA e KAMILLY VITORIA entram aqui em 12/09/2026: contratados para
         # esta equipe, no MESMO departamento dela (Fiscal/Contabil, confirmado pelo usuario) —
         # por isso a equipe NAO virou mista e NAO ganhou `depto_membro`.
-        # Os nomes foram informados pelo usuario; se a transcricao do Gestta trouxer grafia
-        # diferente (sobrenome a mais, "KAMILLY VITORIA" com acento em VITORIA, "KAMILY" com um
+        # GRAFIA CONFERIDA CONTRA O GESTTA em 12/09/2026 (transcricao 07-09 a 11-09/2026):
+        # "ALEXANDER MICHEL GARCIA" bate exato e "KAMILLY VITORIA" NAO batia — no Gestta e
+        # "KAMILLY VITÓRIA", com acento no O. Corrigido aqui.
+        # Se a transcricao trouxer grafia diferente (sobrenome a mais, acento, "KAMILY" com um
         # L), montar_equipes() nao casa o nome: o relatorio deles NAO sai no pacote do Diesley e
         # o console avisa "declarado(s) na equipe de DIESLEY QUEIROZ mas ausente(s) na
         # transcricao". A correcao e ajustar o nome AQUI para o que esta na transcricao — nunca
@@ -646,15 +667,30 @@ EQUIPES = {
          "membros": ["STEPHANIE FERRAZ", "BIANCA ALVES", "JAIRO RAVASI", "MIGUEL MALAGUTTI",
                      "YASMIN RODRIGUES", "CARLA SEGHESSI", "EDUARDA STEFANI", "JULIA MATHIAS",
                      "NATÁLIA SANTOS", "SOPHIA MAGRI", "BEATRIZ PAPA", "EDUARDA ZUCCHI",
-                     "ALEXANDER MICHEL GARCIA", "KAMILLY VITORIA"]},
-        # Katariny de Simone entrou em 15/08/2026 na triagem (mesma função da Laysa).
-        # Flavio Rosato saiu daqui em 01/09/2026: o usuário trocou a regra dele de "corte"
-        # para "total" — sai de TODA avaliação, inclusive dos meses em que trabalhou, igual
-        # à Graziela dos Anjos. Retirado desta lista para não virar AVISO de "declarado na
-        # equipe mas ausente da transcrição" em toda rodada. Ver DESLIGADOS logo abaixo.
-        # Com isso a equipe da Laysa fica com ela + Katariny.
-        {"coordenador": "LAYSA MALAGUTTI", "departamento": "Suporte/Atendimento",
-         "membros": ["KATARINY DE SIMONE"]},
+                     "ALEXANDER MICHEL GARCIA", "KAMILLY VITÓRIA"]},
+        # EQUIPE DA LAYSA (Suporte/Atendimento) — ENCERRADA em 17/09/2026, a pedido do usuário.
+        #
+        # Histórico (não apagar — é o que explica os pacotes já entregues):
+        #   - a equipe tinha Flavio Rosato + Katariny de Simone;
+        #   - Flavio saiu em 01/09/2026, quando o usuário trocou a regra dele de "corte" para
+        #     "total" (sai de TODA avaliação, inclusive dos meses trabalhados, igual à Graziela
+        #     dos Anjos). Ficou só a Katariny;
+        #   - Katariny saiu do escritório em 04/09/2026, com regra "corte" (ver DESLIGADOS).
+        #     Sem ela a equipe não tem mais nenhum membro, e o usuário decidiu ENCERRÁ-LA em vez
+        #     de manter um pacote com a coordenadora sozinha.
+        #
+        # Efeito: não sai mais o pacote "Suporte/Atendimento". A LAYSA não fica sem equipe —
+        # ela continua declarada na equipe da THAINA desde 07/09/2026 (bloco lá em cima), que
+        # era o outro lado da duplicação dela. Com o encerramento a duplicação acabou: o nome
+        # dela agora está em UMA equipe só, e o relatório dela sai uma vez, no pacote da Thaina.
+        #
+        # ATENÇÃO na rodada RETROATIVA (agosto e antes): a Katariny é "corte", então continua
+        # sendo avaliada nos meses em que trabalhou — mas sem esta equipe ela cai em
+        # `sem_equipe`, sai só no consolidado da unidade e o console avisa. Se quiser o pacote
+        # da Laysa de volta numa rodada antiga, DESCOMENTE as duas linhas abaixo e rode; depois
+        # comente de novo. Não apagar.
+        # {"coordenador": "LAYSA MALAGUTTI", "departamento": "Suporte/Atendimento",
+        #  "membros": ["KATARINY DE SIMONE"]},
         # Diretor: recebe a própria equipe E o consolidado da unidade inteira.
         #
         # Histórico do departamento desta equipe (não simplificar sem o usuário confirmar):
@@ -703,15 +739,22 @@ EQUIPES = {
 #             normalmente; so nao entra em periodos que COMECAM depois da saida. Quem e
 #             "corte" CONTINUA declarado(a) em EQUIPES, senao o relatorio nao sairia nos
 #             meses trabalhados.
-#             HOJE NINGUEM ESTA NESSA REGRA - o Flavio era o unico caso e virou "total" em
-#             01/09/2026, a pedido do usuario. A regra e o fora_por_corte() ficam de pe para
-#             o proximo caso; NAO apagar so porque a lista esta vazia.
+#             KATARINY DE SIMONE entrou nessa regra em 17/09/2026 (saida 04/09/2026), a
+#             pedido do usuario: ela nao traz mais atendimento nas rodadas novas, mas o que
+#             ela fez ate 04/09 continua valendo. E a UNICA excecao viva a frase acima sobre
+#             EQUIPES: a equipe dela (Suporte/Atendimento, da Laysa) foi ENCERRADA na mesma
+#             decisao, entao em rodada RETROATIVA (agosto, por exemplo) ela cai em
+#             `sem_equipe` — sai no consolidado da unidade, sem pacote de coordenador, e o
+#             console avisa. Para devolver o pacote da Laysa numa rodada antiga, e so
+#             descomentar o bloco da equipe dela em EQUIPES (esta logo acima, com a linha
+#             pronta). Ver tambem PAPEL_TRIAGEM: o nome dela FICA la de proposito.
 #
 # NAO apague o historico de quem e "corte" e NAO troque a regra sem o usuario mandar.
 DESLIGADOS = {
     "GRAZIELE ANSELMO":   {"saida": "08/08/2026", "regra": "total"},
     "GRAZIELA DOS ANJOS": {"saida": "24/08/2026", "regra": "total"},
     "FLAVIO ROSATO":      {"saida": "24/08/2026", "regra": "total"},
+    "KATARINY DE SIMONE": {"saida": "04/09/2026", "regra": "corte"},
 }
 
 
