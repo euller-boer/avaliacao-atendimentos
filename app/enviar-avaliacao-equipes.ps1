@@ -1,6 +1,6 @@
 ﻿# Abre, JA PRONTOS no Thunderbird, os e-mails da avaliacao de atendimentos.
 # Monte Alto: um e-mail por coordenador (zip da equipe dele) + o da diretoria
-#             (consolidado + os zips das equipes DAQUELA unidade).
+#             (SO o consolidado daquela unidade — ele ja traz todos os relatorios).
 # Taquaritinga: um e-mail por destinatario, com o zip unico da unidade.
 #
 # NAO ENVIA NADA. So monta os rascunhos; quem confere e clica em "Enviar" e sempre o usuario.
@@ -229,7 +229,7 @@ foreach ($z in ($equipes | Sort-Object Name)) {
     $rot = (Get-Info $z.Name).Rotulo
     if ($naoEnviar -contains $rot.ToUpper()) { $pulados += $rot; continue }
     if ($coordDiretor -and $rot.ToUpper() -eq $coordDiretor -and $diretoria.Count -gt 0) {
-        $fundidos += $rot; continue      # o zip dele ja vai anexado no pacote da diretoria
+        $fundidos += $rot; continue      # a equipe dele ja esta dentro do consolidado da diretoria
     }
     Add-Emails $rot @($z.FullName) "equipe"
 }
@@ -239,9 +239,10 @@ foreach ($z in $unicos) {
     Add-Emails $info.Rotulo @($z.FullName) "unidade"
 }
 foreach ($z in $diretoria) {
-    # Consolidado + os zips das equipes DA MESMA unidade (decisao de 11/08/2026).
-    $anexos = @($z.FullName) + @($equipes | Sort-Object Name | ForEach-Object { $_.FullName })
-    Add-Emails (Get-Info $z.Name).Rotulo $anexos "diretoria"
+    # SO o consolidado (decisao de 07/09/2026). Ele ja contem o relatorio individual de
+    # TODOS os colaboradores, o resumo de TODAS as equipes e o resumo do escritorio — os
+    # zips por coordenador eram subconjunto dele, so repetiam anexo e peso no e-mail.
+    Add-Emails (Get-Info $z.Name).Rotulo @($z.FullName) "diretoria"
 }
 
 # ---------------------------------------------------------------- resumo na tela
@@ -266,12 +267,15 @@ foreach ($e in $emails) {
 }
 Write-Host ""
 if ($pulados.Count -gt 0) {
-    Write-Host "  Nao recebe e-mail por opcao (ve os arquivos na propria maquina): $($pulados -join ', ')" -ForegroundColor DarkGray
-    Write-Host "  O .zip da equipe continua no Downloads normalmente." -ForegroundColor DarkGray
+    # O MOTIVO fica no avaliacao-destinatarios.txt, um por nome, e nao aqui: a frase antiga
+    # dizia "ve os arquivos na propria maquina", que e o caso do Euller, e passou a valer
+    # tambem para a Laysa (17/09/2026), cujo motivo e outro - a equipe dela foi encerrada.
+    Write-Host "  Nao recebe e-mail, por escolha registrada nos destinatarios: $($pulados -join ', ')" -ForegroundColor DarkGray
+    Write-Host "  (o motivo de cada um esta no avaliacao-destinatarios.txt, em NAO_ENVIAR)" -ForegroundColor DarkGray
     Write-Host ""
 }
 if ($fundidos.Count -gt 0) {
-    Write-Host "  Sem e-mail proprio (o zip ja vai no pacote da diretoria): $($fundidos -join ', ')" -ForegroundColor DarkGray
+    Write-Host "  Sem e-mail proprio (os relatorios da equipe ja estao no consolidado da diretoria): $($fundidos -join ', ')" -ForegroundColor DarkGray
     Write-Host ""
 }
 if ($semEmail.Count -gt 0) {
@@ -330,7 +334,7 @@ foreach ($e in $emails) {
         $intro   = "Segue em anexo o pacote da sua equipe, referente a $periodoTxt."
     } elseif ($e.Tipo -eq "diretoria") {
         $assunto = "$tituloRegime - $($e.Rotulo) - $periodoTxt"
-        $intro   = "Segue em anexo o pacote consolidado da unidade, referente a $periodoTxt, acompanhado dos pacotes de cada coordenador."
+        $intro   = "Segue em anexo o pacote consolidado da unidade, referente a $periodoTxt, com os relatorios de todos os colaboradores e o resumo de todas as equipes."
     } else {
         $assunto = "$tituloRegime - $($e.Rotulo) - $periodoTxt"
         $intro   = "Segue em anexo o pacote da unidade $($e.Rotulo), referente a $periodoTxt."

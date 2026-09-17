@@ -33,13 +33,16 @@ MONTE ALTO =
 # ------------------------------------------------------------
 # 3) POR COORDENADOR — Monte Alto (divisao de 11/08/2026).
 #    Usado pelo "Enviar Avaliacao por Equipe": cada coordenador recebe
-#    um e-mail com o .zip da equipe dele; a linha da DIRETORIA recebe o
-#    pacote consolidado + os zips de todos os coordenadores.
+#    um e-mail com o .zip da equipe dele; a linha da DIRETORIA recebe
+#    SOMENTE o pacote consolidado (07/09/2026) — ele ja traz o relatorio
+#    de todos os colaboradores e o resumo de todas as equipes.
 #    O nome de cada linha e o mesmo que aparece no nome do .zip.
 # ------------------------------------------------------------
 THAINA DE PONTI = rh@altoconcontabilidade.com.br
 DIESLEY QUEIROZ = fiscal9@altoconcontabilidade.com.br
-LAYSA MALAGUTTI = financeiro@altoconcontabilidade.com.br
+#  LAYSA MALAGUTTI - equipe ENCERRADA em 17/09/2026 (ver NAO_ENVIAR abaixo).
+#  Endereco guardado para o caso de a equipe dela voltar a existir:
+#  LAYSA MALAGUTTI = financeiro@altoconcontabilidade.com.br
 MONTE ALTO (DIRETORIA) = diretoria@altoconcontabilidade.com.br
 
 #    NAO_ENVIAR — coordenadores que NAO recebem e-mail, por opcao (separar por virgula).
@@ -47,11 +50,19 @@ MONTE ALTO (DIRETORIA) = diretoria@altoconcontabilidade.com.br
 #    e um aviso toda semana; aqui o e-mail simplesmente nao e criado, e o script informa
 #    que foi por escolha. O zip da equipe continua sendo gerado normalmente no Downloads.
 #    Euller Boer (11/08/2026): ve os arquivos direto na propria maquina.
-NAO_ENVIAR = Euller Boer
+#    Laysa Malagutti (17/09/2026): a equipe dela (Suporte/Atendimento) foi encerrada
+#      quando a Katariny de Simone saiu do escritorio. Ela nao coordena mais ninguem,
+#      entao nao existe pacote de equipe para mandar a ela.
+#      ATENCAO: ela CONTINUA sendo avaliada - o relatorio individual dela vai dentro
+#      do pacote da THAINA DE PONTI, que e a coordenadora dela desde 07/09/2026.
+#      O nome esta AQUI, e nao apenas com a linha de e-mail comentada, por causa dos
+#      pacotes ANTIGOS que ficam no Downloads: sem isto, rodar o app sobre um periodo
+#      de agosto acharia o zip antigo dela e abriria um rascunho assim mesmo.
+NAO_ENVIAR = Euller Boer, Laysa Malagutti
 
 #    O coordenador abaixo NAO recebe um e-mail separado da propria equipe:
-#    o zip dela ja vai anexado no pacote da diretoria, que e dele. Deixe
-#    esta linha em branco se quiser que ele receba os dois e-mails.
+#    os relatorios dela ja estao dentro do consolidado da diretoria, que e
+#    dele. Deixe esta linha em branco se quiser que ele receba os dois.
 COORDENADOR_E_DIRETOR = Lucas Malagutti
 
 # ------------------------------------------------------------

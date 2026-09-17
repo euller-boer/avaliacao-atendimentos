@@ -1,0 +1,394 @@
+﻿# Abre, JA PRONTOS no Thunderbird, os e-mails da avaliacao de atendimentos.
+# Monte Alto: um e-mail por coordenador (zip da equipe dele) + o da diretoria
+#             (SO o consolidado daquela unidade — ele ja traz todos os relatorios).
+# Taquaritinga: um e-mail por destinatario, com o zip unico da unidade.
+#
+# NAO ENVIA NADA. So monta os rascunhos; quem confere e clica em "Enviar" e sempre o usuario.
+#
+# Uso:
+#   powershell -File enviar-avaliacao-equipes.ps1
+#   powershell -File enviar-avaliacao-equipes.ps1 -Sufixo "03-08-2026_a_09-08-2026"
+#   powershell -File enviar-avaliacao-equipes.ps1 -Unidade "Taquaritinga"
+#   powershell -File enviar-avaliacao-equipes.ps1 -Simular      (mostra o que faria, sem abrir)
+#
+# Destinatarios: ~/.claude/avaliacao-destinatarios.txt. NUNCA inventar endereco.
+
+param(
+    [string]$Sufixo  = "",
+    [string]$Unidade = "",
+    [string]$Pasta   = "",
+    [switch]$Simular,
+    [switch]$SemConfirmacao
+)
+
+$ErrorActionPreference = "Stop"
+if (-not $Pasta) { $Pasta = Join-Path $env:USERPROFILE "Downloads" }
+
+# ---------------------------------------------------------------- janela de escolha
+# DEFINIDA AQUI NO TOPO de proposito: no PowerShell a funcao precisa existir ANTES da linha
+# que a chama. Quando ela estava mais abaixo no arquivo, a escolha do periodo quebrava com
+# "O termo 'Select-Opcao' nao e reconhecido" — e o modo -Simular nao pegava o erro, porque
+# sai antes de chegar nessa linha. (11/08/2026)
+# ComboBox de proposito: radio buttons no mesmo container virariam um grupo so.
+function Select-Opcao($titulo, $pergunta, $opcoes) {
+    Add-Type -AssemblyName System.Windows.Forms | Out-Null
+    Add-Type -AssemblyName System.Drawing | Out-Null
+    $f = New-Object System.Windows.Forms.Form
+    $f.Text = $titulo
+    $f.Size = New-Object System.Drawing.Size(440, 200)
+    $f.StartPosition = "CenterScreen"; $f.FormBorderStyle = "FixedDialog"
+    $f.MaximizeBox = $false; $f.MinimizeBox = $false; $f.TopMost = $true
+    $l = New-Object System.Windows.Forms.Label
+    $l.Text = $pergunta
+    $l.SetBounds(16, 15, 400, 45); $f.Controls.Add($l)
+    $cb = New-Object System.Windows.Forms.ComboBox
+    $cb.DropDownStyle = "DropDownList"; $cb.SetBounds(16, 66, 390, 24)
+    foreach ($o in $opcoes) { [void]$cb.Items.Add($o) }
+    $cb.SelectedIndex = 0; $f.Controls.Add($cb)
+    $ok = New-Object System.Windows.Forms.Button
+    $ok.Text = "Continuar"; $ok.SetBounds(216, 112, 90, 30)
+    $ok.DialogResult = [System.Windows.Forms.DialogResult]::OK; $f.Controls.Add($ok)
+    $ca = New-Object System.Windows.Forms.Button
+    $ca.Text = "Cancelar"; $ca.SetBounds(316, 112, 90, 30)
+    $ca.DialogResult = [System.Windows.Forms.DialogResult]::Cancel; $f.Controls.Add($ca)
+    $f.AcceptButton = $ok; $f.CancelButton = $ca
+    $r = $f.ShowDialog()
+    $f.Dispose()
+    if ($r -ne [System.Windows.Forms.DialogResult]::OK) { return "" }
+    return $cb.SelectedItem
+}
+
+# ---------------------------------------------------------------- destinatarios
+$CFG = Join-Path $env:USERPROFILE ".claude\avaliacao-destinatarios.txt"
+$mapa = @{}
+if (Test-Path -LiteralPath $CFG) {
+    foreach ($ln in (Get-Content -LiteralPath $CFG -Encoding UTF8)) {
+        $t = $ln.Trim()
+        if ($t -eq "" -or $t.StartsWith("#")) { continue }
+        $i = $t.IndexOf("=")
+        if ($i -lt 1) { continue }
+        $chave = $t.Substring(0, $i).Trim().ToUpper()
+        $valor = $t.Substring($i + 1).Trim()
+        if ($valor) { $mapa[$chave] = $valor }
+    }
+}
+$CC = ""
+if ($mapa.ContainsKey("CC")) { $CC = $mapa["CC"] }
+
+$coordDiretor = ""
+if ($mapa.ContainsKey("COORDENADOR_E_DIRETOR")) { $coordDiretor = $mapa["COORDENADOR_E_DIRETOR"].Trim().ToUpper() }
+$naoEnviar = @()
+if ($mapa.ContainsKey("NAO_ENVIAR")) {
+    $naoEnviar = @($mapa["NAO_ENVIAR"] -split "," | ForEach-Object { $_.Trim().ToUpper() } | Where-Object { $_ })
+}
+
+# ---------------------------------------------------------------- nomes dos pacotes
+# Padrao (11/08/2026) — a UNIDADE aparece sempre, senao um pacote de Taquaritinga poderia
+# acabar anexado no e-mail da diretoria de Monte Alto quando as duas rodam no mesmo mes:
+#   <Prefixo> de atendimento de <Unidade> - <Coordenador> - <sufixo>.zip   (equipe)
+#   <Prefixo> de atendimento de <Unidade> (Diretoria) - <sufixo>.zip       (consolidado)
+#   <Prefixo> de atendimento de <Unidade> - <sufixo>.zip                   (unidade sem divisao)
+function Get-Sufixo($nome) {
+    $base = [IO.Path]::GetFileNameWithoutExtension($nome)
+    $i = $base.LastIndexOf(" - ")
+    if ($i -lt 0) { return "" }
+    return $base.Substring($i + 3).Trim()
+}
+
+# So aceita periodo no formato oficial: MM-AAAA, DD-MM-AAAA ou DD-MM-AAAA_a_DD-MM-AAAA.
+# Descarta zips renomeados a mao que ficam no Downloads (ex.: "... - 07-2026 (original 01-08,
+# com erro de atribuicao de mensagens)"), que senao virariam "o pacote mais recente".
+function Test-Sufixo($s) {
+    if (-not $s) { return $false }
+    return ($s -match '^\d{2}-\d{4}$') -or
+           ($s -match '^\d{2}-\d{2}-\d{4}$') -or
+           ($s -match '^\d{2}-\d{2}-\d{4}_a_\d{2}-\d{2}-\d{4}$')
+}
+
+# Devolve: Unidade, Rotulo (chave no arquivo de destinatarios), Tipo (equipe|diretoria|unidade)
+function Get-Info($nome) {
+    $base = [IO.Path]::GetFileNameWithoutExtension($nome)
+    $i = $base.LastIndexOf(" - ")
+    if ($i -ge 0) { $base = $base.Substring(0, $i) }          # tira " - <sufixo>"
+    $base = $base -replace '^(An.lise|Acompanhamento) de atendimento de ', ''
+    if ($base -match '^(.+?)\s*\(Diretoria\)$') {
+        return [pscustomobject]@{ Unidade = $Matches[1].Trim(); Rotulo = $base.Trim(); Tipo = "diretoria" }
+    }
+    $j = $base.IndexOf(" - ")
+    if ($j -ge 0) {
+        return [pscustomobject]@{ Unidade = $base.Substring(0, $j).Trim()
+                                  Rotulo  = $base.Substring($j + 3).Trim(); Tipo = "equipe" }
+    }
+    return [pscustomobject]@{ Unidade = $base.Trim(); Rotulo = $base.Trim(); Tipo = "unidade" }
+}
+
+# ---------------------------------------------------------------- localizar os zips
+if (-not (Test-Path -LiteralPath $Pasta)) {
+    Write-Host "ERRO: pasta nao encontrada: $Pasta" -ForegroundColor Red
+    exit 1
+}
+$todos = @(Get-ChildItem -LiteralPath $Pasta -Filter *.zip -ErrorAction SilentlyContinue |
+           Where-Object { $_.Name -match '^(An.lise|Acompanhamento) de atendimento' })
+$todos = @($todos | Where-Object { Test-Sufixo (Get-Sufixo $_.Name) })
+if ($todos.Count -eq 0) {
+    Write-Host "Nenhum pacote de avaliacao (.zip) com periodo valido encontrado em: $Pasta" -ForegroundColor Yellow
+    exit 1
+}
+
+# PERIODO: nunca escolher sozinho quando ha mais de um. O Downloads acumula pacotes de meses
+# anteriores, e pegar "o mais recente" em silencio ja levou a montar o e-mail de junho quando o
+# esperado era a semana atual — daria para enviar o pacote errado sem perceber. (11/08/2026)
+$periodos = @($todos | Sort-Object LastWriteTime -Descending |
+              ForEach-Object { Get-Sufixo $_.Name } | Select-Object -Unique)
+if (-not $Sufixo) {
+    if ($periodos.Count -gt 1) {
+        if ($Simular) {
+            Write-Host ""
+            Write-Host "Ha pacotes de MAIS DE UM periodo em $Pasta" -ForegroundColor Yellow
+            $periodos | ForEach-Object { Write-Host "   - $_" }
+            Write-Host "Informe qual: -Sufixo `"<periodo>`"" -ForegroundColor Cyan
+            Write-Host ""
+            exit 1
+        }
+        $rotulos = @($periodos | ForEach-Object { $_ -replace "_a_", " a " })
+        $esc = Select-Opcao "Enviar avaliacao - escolha o periodo" `
+               "Ha pacotes de mais de um periodo na pasta Downloads.`r`nQual deles voce quer enviar?" $rotulos
+        if (-not $esc) {
+            Write-Host "  Cancelado pelo usuario. Nenhum e-mail aberto." -ForegroundColor Yellow
+            exit 0
+        }
+        $Sufixo = $esc -replace " a ", "_a_"
+    } else {
+        $Sufixo = $periodos[0]
+    }
+}
+$zips = @($todos | Where-Object { (Get-Sufixo $_.Name) -eq $Sufixo })
+
+# Uma unidade por vez: e-mail de uma unidade nunca leva anexo da outra.
+$unidades = @($zips | ForEach-Object { (Get-Info $_.Name).Unidade } | Sort-Object -Unique)
+if (-not $Unidade) {
+    if ($unidades.Count -gt 1) {
+        if ($Simular) {
+            # modo simulacao roda sem interacao: so lista e sai
+            Write-Host ""
+            Write-Host "Ha pacotes de MAIS DE UMA unidade no periodo '$Sufixo':" -ForegroundColor Yellow
+            $unidades | ForEach-Object { Write-Host "   - $_" }
+            Write-Host ""
+            Write-Host "Rode uma vez para cada, informando a unidade:" -ForegroundColor Cyan
+            $unidades | ForEach-Object { Write-Host "   ...\enviar-avaliacao-equipes.ps1 -Unidade `"$_`"" }
+            Write-Host ""
+            exit 1
+        }
+        $Unidade = Select-Opcao "Enviar avaliacao - escolha a unidade" `
+                   "Ha pacotes de mais de uma unidade neste periodo.`r`nPara qual delas voce quer abrir os e-mails?" $unidades
+        if (-not $Unidade) {
+            Write-Host "  Cancelado pelo usuario. Nenhum e-mail aberto." -ForegroundColor Yellow
+            exit 0
+        }
+    } else {
+        $Unidade = $unidades[0]
+    }
+}
+$zips = @($zips | Where-Object { (Get-Info $_.Name).Unidade -eq $Unidade })
+if ($zips.Count -eq 0) {
+    Write-Host "Nenhum pacote da unidade '$Unidade' no periodo '$Sufixo'." -ForegroundColor Yellow
+    Write-Host "Unidades disponiveis: $($unidades -join ', ')" -ForegroundColor Cyan
+    exit 1
+}
+
+# Regime vem do prefixo: "Acompanhamento" = semana/dia (SEM nota), "Analise" = mensal.
+$acomp = ($zips[0].Name -match '^Acompanhamento')
+
+# ---------------------------------------------------------------- quem recebe o que
+$diretoria = @($zips | Where-Object { (Get-Info $_.Name).Tipo -eq "diretoria" })
+$equipes   = @($zips | Where-Object { (Get-Info $_.Name).Tipo -eq "equipe"    })
+$unicos    = @($zips | Where-Object { (Get-Info $_.Name).Tipo -eq "unidade"   })
+
+# No arquivo de destinatarios: virgula = varios destinatarios NO MESMO e-mail;
+# ponto-e-virgula = e-mails SEPARADOS (um rascunho para cada).
+function Split-Destinos($valor) {
+    if (-not $valor) { return @("") }
+    $p = @($valor -split ";" | ForEach-Object { $_.Trim() } | Where-Object { $_ })
+    if ($p.Count -eq 0) { return @("") }
+    return $p
+}
+
+$emails = @(); $pulados = @(); $fundidos = @()
+
+function Add-Emails($rotulo, $anexos, $tipo) {
+    $script:contexto = $tipo
+    $chave = $rotulo.ToUpper()
+    $valor = ""
+    if ($mapa.ContainsKey($chave)) { $valor = $mapa[$chave] }
+    foreach ($d in (Split-Destinos $valor)) {
+        $script:emails += [pscustomobject]@{ Rotulo = $rotulo; Para = $d; Anexos = $anexos; Tipo = $tipo }
+    }
+}
+
+foreach ($z in ($equipes | Sort-Object Name)) {
+    $rot = (Get-Info $z.Name).Rotulo
+    if ($naoEnviar -contains $rot.ToUpper()) { $pulados += $rot; continue }
+    if ($coordDiretor -and $rot.ToUpper() -eq $coordDiretor -and $diretoria.Count -gt 0) {
+        $fundidos += $rot; continue      # a equipe dele ja esta dentro do consolidado da diretoria
+    }
+    Add-Emails $rot @($z.FullName) "equipe"
+}
+foreach ($z in $unicos) {
+    $info = Get-Info $z.Name
+    if ($naoEnviar -contains $info.Rotulo.ToUpper()) { $pulados += $info.Rotulo; continue }
+    Add-Emails $info.Rotulo @($z.FullName) "unidade"
+}
+foreach ($z in $diretoria) {
+    # SO o consolidado (decisao de 07/09/2026). Ele ja contem o relatorio individual de
+    # TODOS os colaboradores, o resumo de TODAS as equipes e o resumo do escritorio — os
+    # zips por coordenador eram subconjunto dele, so repetiam anexo e peso no e-mail.
+    Add-Emails (Get-Info $z.Name).Rotulo @($z.FullName) "diretoria"
+}
+
+# ---------------------------------------------------------------- resumo na tela
+$periodoTxt = $Sufixo -replace "_a_", " a "
+$regimeTxt = "Avaliacao mensal"
+if ($acomp) { $regimeTxt = "Acompanhamento semanal (amostra reduzida, SEM nota)" }
+
+Write-Host ""
+Write-Host "=== E-MAILS DA AVALIACAO DE ATENDIMENTOS ===" -ForegroundColor Cyan
+Write-Host "  Unidade.: $Unidade"
+Write-Host "  Periodo.: $periodoTxt"
+Write-Host "  Regime..: $regimeTxt"
+Write-Host "  Pacotes.: $($zips.Count) zip(s) em $Pasta"
+Write-Host ""
+$semEmail = @()
+foreach ($e in $emails) {
+    $mb = [math]::Round((($e.Anexos | ForEach-Object { (Get-Item -LiteralPath $_).Length } | Measure-Object -Sum).Sum / 1MB), 1)
+    $dest = $e.Para
+    if (-not $dest) { $dest = "(SEM E-MAIL - preencher no Thunderbird)"; $semEmail += $e.Rotulo }
+    Write-Host ("  {0,-26} -> {1}" -f $e.Rotulo, $dest)
+    Write-Host ("  {0,-26}    {1} anexo(s), {2} MB" -f "", $e.Anexos.Count, $mb) -ForegroundColor DarkGray
+}
+Write-Host ""
+if ($pulados.Count -gt 0) {
+    Write-Host "  Nao recebe e-mail por opcao (ve os arquivos na propria maquina): $($pulados -join ', ')" -ForegroundColor DarkGray
+    Write-Host "  O .zip da equipe continua no Downloads normalmente." -ForegroundColor DarkGray
+    Write-Host ""
+}
+if ($fundidos.Count -gt 0) {
+    Write-Host "  Sem e-mail proprio (os relatorios da equipe ja estao no consolidado da diretoria): $($fundidos -join ', ')" -ForegroundColor DarkGray
+    Write-Host ""
+}
+if ($semEmail.Count -gt 0) {
+    Write-Host "  AVISO: sem e-mail cadastrado para: $(($semEmail | Sort-Object -Unique) -join ', ')" -ForegroundColor Yellow
+    Write-Host "         Cadastre em: $CFG" -ForegroundColor Yellow
+    Write-Host ""
+}
+
+if ($Simular) {
+    Write-Host "  MODO SIMULACAO - nenhum e-mail foi aberto." -ForegroundColor Yellow
+    exit 0
+}
+
+# ---------------------------------------------------------------- confirmacao
+if (-not $SemConfirmacao) {
+    Add-Type -AssemblyName System.Windows.Forms | Out-Null
+    $linhas = ($emails | ForEach-Object {
+        $d = $_.Para
+        if (-not $d) { $d = "(sem e-mail cadastrado)" }
+        "- " + $_.Rotulo + "  ->  " + $d
+    }) -join "`r`n"
+    $msg = "Serao abertos $($emails.Count) rascunhos no Thunderbird:`r`n`r`n$linhas`r`n`r`n" +
+           "Unidade: $Unidade`r`nPeriodo: $periodoTxt`r`nRegime: $regimeTxt`r`n`r`n" +
+           "NADA sera enviado - voce confere e clica em Enviar em cada um.`r`n`r`nAbrir agora?"
+    $r = [System.Windows.Forms.MessageBox]::Show($msg, "Enviar avaliacao de atendimentos",
+         [System.Windows.Forms.MessageBoxButtons]::OKCancel,
+         [System.Windows.Forms.MessageBoxIcon]::Information)
+    if ($r -ne [System.Windows.Forms.DialogResult]::OK) {
+        Write-Host "  Cancelado pelo usuario. Nenhum e-mail aberto." -ForegroundColor Yellow
+        exit 0
+    }
+}
+
+# ---------------------------------------------------------------- abrir no Thunderbird
+$tb = @("$env:ProgramFiles\Mozilla Thunderbird\thunderbird.exe",
+        "${env:ProgramFiles(x86)}\Mozilla Thunderbird\thunderbird.exe",
+        "$env:LOCALAPPDATA\Mozilla Thunderbird\thunderbird.exe") |
+      Where-Object { Test-Path $_ } | Select-Object -First 1
+if (-not $tb) {
+    Write-Host "ERRO: Thunderbird nao encontrado nesta maquina." -ForegroundColor Red
+    exit 1
+}
+
+# Valores do -compose vao entre aspas SIMPLES (assim virgulas dentro do texto nao viram
+# separador de campo). Aspas duplas sao removidas do conteudo porque o bloco inteiro vai
+# entre aspas duplas na linha de comando — uma aspa dupla solta encerraria o argumento.
+function Q($s) { "'" + ($s -replace "'", "" -replace '"', "") + "'" }
+
+# Assunto definido pela coordenacao em 11/08/2026. Vale para as duas unidades.
+$tituloRegime = "ANÁLISE ATENDIMENTO MENSAL"
+if ($acomp) { $tituloRegime = "ANÁLISE ATENDIMENTOS SEMANAIS" }
+
+foreach ($e in $emails) {
+    if ($e.Tipo -eq "equipe") {
+        $assunto = "$tituloRegime - Equipe $($e.Rotulo) - $periodoTxt"
+        $intro   = "Segue em anexo o pacote da sua equipe, referente a $periodoTxt."
+    } elseif ($e.Tipo -eq "diretoria") {
+        $assunto = "$tituloRegime - $($e.Rotulo) - $periodoTxt"
+        $intro   = "Segue em anexo o pacote consolidado da unidade, referente a $periodoTxt, com os relatorios de todos os colaboradores e o resumo de todas as equipes."
+    } else {
+        $assunto = "$tituloRegime - $($e.Rotulo) - $periodoTxt"
+        $intro   = "Segue em anexo o pacote da unidade $($e.Rotulo), referente a $periodoTxt."
+    }
+
+    if ($acomp) {
+        # Regra da coordenacao (08/08/2026): semana/dia NAO tem nota. O texto NAO pode falar
+        # em nota, media ou ranking — senao o e-mail contradiz o proprio documento anexado.
+        $corpo = @"
+Prezados,
+
+$intro
+
+O pacote traz um levantamento por colaborador e o resumo da equipe, com os indicadores do período (atendimentos, SLA de primeira resposta, mensagens, atendimentos proativos e ocorrências de gírias).
+
+Importante: este é um ACOMPANHAMENTO do período, com amostra reduzida — ele NÃO atribui nota, média nem ranking. A avaliação formal, com nota, é a mensal.
+
+Todos os números são contagens diretas sobre a transcrição congelada do período, auditáveis linha a linha.
+
+Atenciosamente,
+"@
+    } else {
+        $corpo = @"
+Prezados,
+
+$intro
+
+O pacote contém um relatório individual em PDF para cada colaborador, o Resumo da Equipe e o Resumo do Escritório, com a média e o ranking da unidade inteira para comparação.
+
+As notas seguem os 9 critérios do Manual de Padrões Operacionais, com os pesos definidos pela coordenação, e cada critério traz exemplos reais (cliente, data e hora) extraídos das conversas do período. A média geral e o ranking são da unidade inteira.
+
+Atenciosamente,
+"@
+    }
+
+    # Anexos: usar AbsoluteUri, que codifica espacos como %20. Montar a mao com
+    # "file:///" + caminho deixava os espacos crus ("... de atendimento de Monte Alto - ...")
+    # e o Thunderbird descartava o anexo silenciosamente — o e-mail abria sem nada anexado.
+    $urls = ($e.Anexos | ForEach-Object { ([System.Uri]$_).AbsoluteUri }) -join ","
+
+    # ORDEM IMPORTA: attachment ANTES de body. O corpo tem quebras de linha de verdade, e
+    # elas interrompem a leitura do argumento do -compose; tudo que vinha depois do body
+    # (era o caso do attachment) se perdia. Com o anexo antes, ele ja foi lido.
+    $arg = "to=" + (Q $e.Para) + ",subject=" + (Q $assunto) + ",attachment=" + (Q $urls)
+    if ($CC) { $arg += ",cc=" + (Q $CC) }
+    $arg += ",body=" + (Q $corpo)
+    # O bloco do -compose TEM de chegar ao Thunderbird como UM argumento so. Passando
+    # -ArgumentList @("-compose", $arg), o PowerShell nao poe aspas em volta e o comando e
+    # partido nos espacos: o destinatario chegava como "'diretoria..." (com a aspa literal e
+    # cortado na virgula) e assunto, anexo e corpo se perdiam. Medido em 11/08/2026 com um
+    # programa que imprime os argumentos recebidos. Passando UMA string com as aspas duplas
+    # explicitas, chega tudo junto — inclusive as quebras de linha do corpo.
+    Start-Process -FilePath $tb -ArgumentList ('-compose "' + $arg + '"')
+    Start-Sleep -Milliseconds 900   # o Thunderbird perde janelas se vierem todas de uma vez
+}
+
+Write-Host ""
+Write-Host "  $($emails.Count) rascunhos abertos no Thunderbird." -ForegroundColor Green
+Write-Host "  >> NADA FOI ENVIADO. Confira cada um e clique em Enviar. <<" -ForegroundColor Yellow
+Write-Host ""
