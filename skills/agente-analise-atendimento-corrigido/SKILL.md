@@ -122,6 +122,9 @@ logo em seguida.
   `"ANA CHUECO"` (Taquaritinga, incluída em 10/08/2026) e `"KATARINY DE SIMONE"` (Monte Alto,
   incluída em 15/08/2026). Adicionar o nome (MAIÚSCULO, igual ao bloco de integridade) aqui
   quando outro colaborador tiver essa função — **decisão da coordenação, não decidir sozinho**.
+  ⚠️ Esta lista **não tem data**: o nome posto aqui vale para toda rodada, inclusive retroativa.
+  Quem **passou** a fazer triagem no meio do caminho vai em `PAPEL_TRIAGEM_DESDE` (logo abaixo),
+  senão a régua muda a nota de meses em que a pessoa ainda era colaboradora comum.
   ⚠️ **Sair do escritório NÃO tira o nome desta lista.** A Katariny saiu em 04/09/2026 e o nome
   dela continua aqui de propósito: a lista ainda é usada nas rodadas retroativas (critério 6
   dela) e nas rodadas novas (regra 3.3 dos colegas que devolveram chamado para a triagem dela).
@@ -138,6 +141,50 @@ logo em seguida.
   dá resultado idêntico para os outros 23. **Katariny de Simone** entrou na triagem de Monte Alto
   em 15/08/2026, então de agosto/2026 até a saída dela (**04/09/2026**) a exceção vale também
   para ela. Em agosto ela fez 1.159 atendimentos e 678 repasses como origem.
+
+#### Triagem com DATA DE INÍCIO — `PAPEL_TRIAGEM_DESDE` (usuário, 19/09/2026)
+
+Quem **mudou de função no meio do caminho** não entra no set `PAPEL_TRIAGEM` (que não tem data e
+valeria para toda rodada, inclusive retroativa), e sim no dicionário `PAPEL_TRIAGEM_DESDE`, com a
+data em que assumiu a triagem. A consulta passou a ser feita pela função `eh_triagem(nome, quando)`.
+
+- **EDUARDA BORGES — triagem de Monte Alto desde 04/09/2026, 12:00.** Assumiu o recebimento e
+  direcionamento no meio do dia em que a Katariny saiu. A data tem **hora** porque a passagem de
+  bastão foi medida na transcrição e é limpa: em **04/09** a Katariny fez 31 repasses, **todos de
+  manhã** (07h às 11h) e nenhum à tarde; a Eduarda fez 14, **todos à tarde** (13:35 às 16:13) e
+  nenhum de manhã. O usuário revisou o dia e confirmou o meio-dia em 19/09/2026.
+  Demais medições: agosto/2026 inteiro = **19 repasses no mês** (colaboradora comum);
+  01 a 03/09 = 3; 08/09 a 11/09 = **271 em 4 dias úteis** (80, 65, 65 e 61 por dia) — a maior da
+  unidade, contra 31 da Laysa no mesmo período.
+  Formato aceito em `PAPEL_TRIAGEM_DESDE`: `"DD/MM/AAAA HH:MM"` ou `"DD/MM/AAAA"` (sem hora vale
+  desde 00:00).
+- **Como a vigência é conferida** (duas medidas, de propósito):
+  - **critério 6 dela**: é agregado do período inteiro, não tem data por atendimento. Vale a régua
+    de triagem quando o período **termina** em/depois da data de início, ou seja, quando o período
+    tem pelo menos um pedaço de vigência (`periodo_fim`, novo no cabeçalho). Assim a rodada mensal
+    de **09/2026 usa a régua de triagem** (correta da tarde de 04/09 em diante — só 3 repasses do
+    mês ficaram antes) e agosto/julho ficam intactos;
+  - **regras 3.1 e 3.2/3.3 (perdão dos colegas)**: ali existe a data **e hora** exatas do carimbo,
+    então a vigência é conferida **carimbo a carimbo** — chamado entregue por ela na **manhã** de
+    04/09 não conta como "veio da triagem"; um da **tarde** do mesmo dia conta.
+- ⚠️ **Decidido pelo usuário em 19/09/2026: NÃO separar os dias anteriores à vigência dentro do
+  mesmo mês.** Na rodada mensal de 09/2026 os dias 01 a 03/09 dela (3 repasses) entram na régua de
+  triagem junto com o resto do mês. O critério 6 continua com **uma base e um texto só**, e isso é
+  de propósito, não é pendência. Só reabrir se o usuário pedir.
+- ⚠️ **Efeito conhecido e aceito no período 31/08 a 04/09/2026:** ele termina na tarde da virada,
+  então pela regra do `periodo_fim` a semana inteira sai pela régua de triagem — o critério 6 dela
+  vai de *"59 de 76 sem repasse (78%)"* para *"76 de 76 (100%)"* —, embora ela só tenha exercido a
+  função em meio dia dos cinco. O pacote daquela semana **já foi entregue pela régua comum e o
+  usuário decidiu não regerá-lo**, então isso só apareceria se alguém rerodasse o período. A trava,
+  se um dia incomodar, é exigir que a vigência cubra uma fração mínima do período — **não
+  implementar sem o usuário pedir**.
+- **Testado em 19/09/2026** sobre as transcrições reais. Semana 07-09 a 11-09: muda **só** o
+  relatório dela (critério 6 passou de "86 de 357 resolvidos sem repasse (24%)", que ainda entrava
+  como ponto de melhoria, para "direcionamento correto em 357 de 357 (100%)" e destaque de boa
+  prática). **Agosto/2026 mensal: zero mudanças** — as rodadas retroativas continuam idênticas.
+  Semana 31/08 a 04/09: muda só o relatório dela, pelo motivo explicado acima. Conferida também a
+  virada do meio-dia carimbo a carimbo (11:59 = não é triagem, 12:00 e 13:35 = é) e a vigência em
+  8 períodos diferentes.
 
 ## Critério 8 — "Transformar o Não em Busca por Soluções" (revisão 07/08/2026)
 

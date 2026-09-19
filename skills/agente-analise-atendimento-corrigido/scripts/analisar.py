@@ -26,7 +26,7 @@ nome alterado, ex.: "Eduarda Borges / Maria Eduarda"). Se o bloco estiver
 ausente ou com "lidos" != totalDocs, o script ABORTA.
 """
 import json, re, sys, os, html, unicodedata
-from datetime import datetime
+from datetime import datetime, timedelta
 
 # ---------------------------------------------------------------- constantes
 CRIT = ["Tempo de Início do Atendimento (SLA)",
@@ -345,7 +345,25 @@ def ler_cabecalho(lines):
             p_ini = datetime(int(m_m.group(2)), int(m_m.group(1)), 1)
     except ValueError:
         p_ini = None
+    # FIM do periodo como datetime — usado pela VIGENCIA do PAPEL_TRIAGEM (ver
+    # PAPEL_TRIAGEM_DESDE). Mes fechado termina no ultimo dia do mes; intervalo termina na
+    # 2a data; dia termina nele mesmo. Fica no ULTIMO INSTANTE do dia (23:59:59) para que a
+    # comparacao com a data de vigencia inclua o proprio dia.
+    p_fim = None
+    try:
+        if m_r:
+            p_fim = datetime.strptime(m_r.group(2), "%d/%m/%Y")
+        elif m_d:
+            p_fim = datetime.strptime(m_d.group(1), "%d/%m/%Y")
+        elif m_m:
+            mes_i, ano_i = int(m_m.group(1)), int(m_m.group(2))
+            p_fim = datetime(ano_i + (mes_i == 12), (mes_i % 12) + 1, 1) - timedelta(days=1)
+        if p_fim is not None:
+            p_fim = p_fim.replace(hour=23, minute=59, second=59)
+    except ValueError:
+        p_fim = None
     return {"total_api": total_api, "periodo_label_base": plabel, "periodo_ini": p_ini,
+            "periodo_fim": p_fim,
             "periodo_tipo": tipo, "periodo_frase": pfrase,
             "periodo_frase_cap": (pfrase[0].upper() + pfrase[1:]) if pfrase else "",
             "periodo_nome": pnome,
@@ -436,6 +454,87 @@ def parse(lines, tot_map):
 # de quem está na transcrição. São 5 casos em todo o mês de agosto (1 para cada: Beatriz Papa,
 # Carla Seghessi, Jairo Ravasi, Natália Santos, Stephanie Ferraz) — medido em 17/09/2026.
 PAPEL_TRIAGEM = {"LAYSA MALAGUTTI", "ANA CHUECO", "KATARINY DE SIMONE"}
+
+# TRIAGEM COM DATA DE INICIO (usuário, 19/09/2026) — quem passou a fazer triagem NO MEIO da
+# vida do sistema, e portanto NÃO pode ser medido por essa régua nos períodos anteriores.
+#
+# Por que este dicionário existe e o nome não foi simplesmente somado ao set acima:
+# PAPEL_TRIAGEM não tem data, então incluir um nome lá aplica a régua a TODA rodada, inclusive
+# retroativa. Para quem sempre fez triagem (Laysa, Ana, Katariny) isso está certo. Para quem
+# MUDOU de função, não: mudaria a nota de meses em que a pessoa era colaboradora comum.
+#
+# EDUARDA BORGES desde 04/09/2026 12:00: assumiu o recebimento e direcionamento dos chamados
+# em Monte Alto no MEIO do dia em que a Katariny saiu (04/09/2026 — ver DESLIGADOS). Medido na
+# transcrição real, é a troca de função mais nítida que o sistema já registrou:
+#   - agosto/2026 inteiro:      19 transferências NO MÊS (perfil de colaboradora comum);
+#   - 01 a 03/09:               3 (2 em 01/09, 1 em 03/09) — ainda colaboradora comum;
+#   - 04/09, a PASSAGEM DE BASTÃO, que é o motivo de a vigência ter HORA e não só data:
+#       * Katariny: 31 repasses, TODOS de manhã (07h às 11h), ZERO à tarde;
+#       * Eduarda:  14 repasses, TODOS à tarde (13:35 às 16:13), ZERO de manhã.
+#     O usuário revisou o dia e confirmou em 19/09/2026 que ela assumiu a partir do meio-dia.
+#   - 08/09 a 11/09:            271 em 4 dias úteis (80, 65, 65, 61 por dia) — a MAIOR da
+#                               unidade, contra 31 da Laysa no mesmo período.
+# Ou seja: pela régua comum ("resolveu sem repassar") ela seria punida em setembro por 271
+# repasses que SÃO a função dela; pela régua de triagem em agosto ela seria medida por uma
+# função que não exercia. Por isso a regra vale por DATA, não em bloco.
+#
+# COMO A VIGÊNCIA É APLICADA (duas medidas diferentes, de propósito):
+#   - critério 6 DELA (analisar_colab): o critério é agregado do período inteiro, não tem data
+#     por atendimento. Vale a régua de triagem quando o período TERMINA em/depois da data de
+#     início — isto é, quando o período tem pelo menos um pedaço de vigência. Assim a rodada
+#     mensal de 09/2026 (01/09 a 30/09) usa a régua de triagem, que é a correta da tarde de
+#     04/09 em diante (só 3 repasses do mês ficaram antes disso), e as rodadas de agosto e
+#     julho continuam intocadas. O usuário decidiu em 19/09/2026 NÃO separar os dias
+#     anteriores à vigência dentro do mesmo mês — o critério 6 tem UMA base e UM texto.
+#     EFEITO CONHECIDO E ACEITO no período curto 31/08 a 04/09/2026: ele TERMINA na tarde da
+#     virada, então pela regra acima a semana inteira sai pela régua de triagem (critério 6
+#     dela vai de "59 de 76 sem repasse, 78%" para "76 de 76, 100%"), embora ela só tenha
+#     exercido a função em meio dia dos cinco. O pacote daquela semana JÁ FOI ENTREGUE pela
+#     régua comum e o usuário decidiu não regerá-lo, então isso só apareceria se alguém
+#     rerodasse o período. Se algum dia incomodar, a trava é exigir que a vigência cubra uma
+#     fração mínima do período — NÃO implementar sem o usuário pedir;
+#   - regras 3.1 e 3.3 (perdão dos COLEGAS): ali existe a data E HORA exatas do carimbo, então
+#     a vigência é conferida carimbo a carimbo. Um chamado que ela entregou na MANHÃ de 04/09
+#     não conta como "veio da triagem"; um da TARDE do mesmo dia conta.
+# Extensão: para outra pessoa que MUDAR de função, acrescentar aqui com a data — "DD/MM/AAAA"
+# ou "DD/MM/AAAA HH:MM" quando a virada tiver hora conhecida (sem hora, vale desde 00:00).
+# Para quem sempre fez triagem, continuar usando o set PAPEL_TRIAGEM acima.
+PAPEL_TRIAGEM_DESDE = {"EDUARDA BORGES": "04/09/2026 12:00"}
+
+
+def _dt_vigencia(txt):
+    """Converte a data de PAPEL_TRIAGEM_DESDE em datetime.
+
+    Aceita "DD/MM/AAAA HH:MM" (virada com hora conhecida, caso da Eduarda Borges em
+    04/09/2026 12:00) e "DD/MM/AAAA" (sem hora — vale desde 00:00 daquele dia).
+    """
+    txt = (txt or "").strip()
+    for fmt in ("%d/%m/%Y %H:%M", "%d/%m/%Y"):
+        try:
+            return datetime.strptime(txt, fmt)
+        except ValueError:
+            continue
+    raise ValueError("data de vigencia invalida em PAPEL_TRIAGEM_DESDE: %r" % txt)
+
+
+def eh_triagem(nome, quando=None):
+    """O `nome` exerce o PAPEL DE TRIAGEM na data `quando`?
+
+    `quando` é datetime (data do carimbo, ou fim do período avaliado). Quem está em
+    PAPEL_TRIAGEM vale sempre, com ou sem data. Quem está em PAPEL_TRIAGEM_DESDE só vale a
+    partir da data de vigência — e, sem data informada, NÃO vale (conservador de propósito:
+    é melhor não aplicar a régua especial do que aplicá-la a um período em que a pessoa
+    ainda não tinha a função).
+    """
+    nm = (nome or "").strip().upper()
+    if nm in PAPEL_TRIAGEM:
+        return True
+    d = PAPEL_TRIAGEM_DESDE.get(nm)
+    if not d or quando is None:
+        return False
+    return quando >= _dt_vigencia(d)
+
+
 TRIAGEM_JANELA_REBOTE_MIN = 24 * 60  # janela p/ considerar que o destino corrigiu a rota
 
 # ---------------------------------------------------------------------------
@@ -890,8 +989,11 @@ def escanear_transferencias_saida(lines, tot_map):
         i += 1
 
     # 2a passada: separa as INSTRUCOES da triagem ("depois direcionar para X").
+    # eh_triagem(nome, c[0]): a vigencia e conferida na DATA DO CARIMBO — ver
+    # PAPEL_TRIAGEM_DESDE. Instrucao dada por quem ainda nao tinha a funcao nao e
+    # instrucao de triagem.
     instrucoes = [c for c in carimbos
-                  if c[1].upper() in PAPEL_TRIAGEM and c[4]
+                  if eh_triagem(c[1], c[0]) and c[4]
                   and _INSTR_POSTERIOR.search(c[4]) and _INSTR_VERBO.search(c[4])]
 
     def _instruido(dt, nome_de, destino, contato):
@@ -930,7 +1032,7 @@ def escanear_transferencias_saida(lines, tot_map):
         # dupla — sao 12 casos, e ficaram DE FORA de proposito, para serem
         # decididos separadamente. A excecao nao se aplica a triagem: devolver o
         # chamado para quem tem a funcao de direcionar continua sendo redirecionar.
-        if it_de.strip().upper() not in PAPEL_TRIAGEM and autor_eh(it_de, destino):
+        if not eh_triagem(it_de, it_dt) and autor_eh(it_de, destino):
             return None
         if any(it_dt <= d <= dt for d in fala_cli.get((cliente, nome_de.upper()), [])):
             return None            # falou com o cliente: nao e "so passei adiante"
@@ -1279,7 +1381,10 @@ def analisar_colab(nm, ats, hdr, transf_saida_ids=None, transf_saida_ex=None, tr
     transf_real = len(transf_saida_ids)
     overlap6 = len(transf_saida_ids & ids_com_msg_propria)
 
-    if nm.upper() in PAPEL_TRIAGEM:
+    # hdr["periodo_fim"]: o criterio 6 e agregado do periodo inteiro, entao a vigencia de
+    # PAPEL_TRIAGEM_DESDE e conferida no FIM do periodo — basta o periodo alcancar a data de
+    # inicio da funcao. Quem esta no set PAPEL_TRIAGEM nao depende disso e vale sempre.
+    if eh_triagem(nm, hdr.get("periodo_fim")):
         # Papel de TRIAGEM: repassar é a função, não uma falha. O critério mede se o
         # direcionamento foi certo (destino não precisou corrigir a rota em até 24h),
         # não "resolveu sem repassar".
