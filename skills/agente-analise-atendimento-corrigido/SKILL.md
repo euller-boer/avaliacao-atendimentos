@@ -50,6 +50,41 @@ a transcrição de cada rodada deve conter apenas os colaboradores da unidade em
 - **Fonte congelada:** uma vez gerada e conferida, a transcrição do período é reutilizada em
   TODAS as análises e reanálises. Nunca regenerar a transcrição entre rodadas.
 
+## Chamados fora das métricas de um colaborador (decisão de 19/09/2026)
+
+Um chamado específico pode sair da conta de **um colaborador**, sem sair da transcrição. É o
+dicionário `CONTATOS_FORA`, no `scripts/analisar.py` — não confundir com `DESLIGADOS`, que tira
+a **pessoa** inteira.
+
+| | `DESLIGADOS` | `CONTATOS_FORA` |
+|---|---|---|
+| O que sai | a pessoa e todos os atendimentos dela | só o atendimento daquele contato |
+| De quem | de toda a avaliação | só do colaborador listado |
+| Onde é aplicado | no Passo 2 do agente de LEITURA | no `main()` do `analisar.py` |
+
+Como funciona:
+
+- A chave é o **nome exato da linha `Contato:`** do Gestta, em MAIÚSCULAS, e a comparação é
+  **exata**. Isso é de propósito: `"SIMONI"` não pode arrastar um `Raphael de Simoni` citado
+  dentro de outra conversa, nem a cliente `Eloisa Simone`.
+- A exclusão roda **depois da trava de contagem** do parse. A transcrição continua íntegra e
+  conferida; o que sai é só a CONTA (nota, SLA, volume e critério 6). Por isso vale para
+  qualquer período, inclusive reprocessamento de rodadas antigas.
+- Cada exclusão imprime no console uma linha `FORA DAS METRICAS: <colaborador> - contato ...`,
+  para a coordenação ver o que saiu sem precisar abrir o código.
+- **O mesmo contato atendido por outra pessoa continua contando normalmente.**
+
+Lista atual:
+
+| Colaborador | Contato | Motivo |
+|---|---|---|
+| Euller Boer | `Simoni` | Ex-funcionária da EGV PHARMA que procurou o Euller em nome próprio (04/09/2026: *"Aqui é a Simoni que trabalhava na EGV PHARMA"*). Não é chamado de cliente. |
+
+> Na transcrição de 31/08 a 04/09/2026 esse chamado está na seção da **Katariny de Simone** — a
+> triagem recebeu e repassou —, então a regra **não muda nenhuma nota já entregue**. Ela passa a
+> valer quando o contato cair direto no Euller. O atendimento da
+> `Schuá - 371 EGV PHARMA ...` é cliente de verdade e **continua contando**.
+
 ## Regra do critério 1 — SLA (atualizada pela coordenação em 14/07/2026)
 
 O cronômetro do SLA de 1ª resposta funciona assim (implementado em `scripts/analisar.py`):
@@ -123,8 +158,9 @@ logo em seguida.
   incluída em 15/08/2026). Adicionar o nome (MAIÚSCULO, igual ao bloco de integridade) aqui
   quando outro colaborador tiver essa função — **decisão da coordenação, não decidir sozinho**.
   ⚠️ Esta lista **não tem data**: o nome posto aqui vale para toda rodada, inclusive retroativa.
-  Quem **passou** a fazer triagem no meio do caminho vai em `PAPEL_TRIAGEM_DESDE` (logo abaixo),
-  senão a régua muda a nota de meses em que a pessoa ainda era colaboradora comum.
+  Quem **passou** a fazer triagem no meio do caminho — ou **deixou** a função depois — vai em
+  `PAPEL_TRIAGEM_DESDE` (logo abaixo), que tem data de início e, se for o caso, de fim; senão a
+  régua muda a nota de meses em que a pessoa ainda era (ou já voltou a ser) colaboradora comum.
   ⚠️ **Sair do escritório NÃO tira o nome desta lista.** A Katariny saiu em 04/09/2026 e o nome
   dela continua aqui de propósito: a lista ainda é usada nas rodadas retroativas (critério 6
   dela) e nas rodadas novas (regra 3.3 dos colegas que devolveram chamado para a triagem dela).
@@ -142,13 +178,24 @@ logo em seguida.
   em 15/08/2026, então de agosto/2026 até a saída dela (**04/09/2026**) a exceção vale também
   para ela. Em agosto ela fez 1.159 atendimentos e 678 repasses como origem.
 
-#### Triagem com DATA DE INÍCIO — `PAPEL_TRIAGEM_DESDE` (usuário, 19/09/2026)
+#### Triagem com PERÍODO DE VIGÊNCIA — `PAPEL_TRIAGEM_DESDE` (usuário, 19/09 e 26/09/2026)
 
 Quem **mudou de função no meio do caminho** não entra no set `PAPEL_TRIAGEM` (que não tem data e
 valeria para toda rodada, inclusive retroativa), e sim no dicionário `PAPEL_TRIAGEM_DESDE`, com a
-data em que assumiu a triagem. A consulta passou a ser feita pela função `eh_triagem(nome, quando)`.
+data em que assumiu a triagem. A consulta é feita pelas funções `eh_triagem(nome, quando)` (carimbo
+a carimbo) e `eh_triagem_periodo(nome, ini, fim)` (critério 6, agregado do período).
 
-- **EDUARDA BORGES — triagem de Monte Alto desde 04/09/2026, 12:00.** Assumiu o recebimento e
+O valor aceita **duas formas** (o fim entrou em 26/09/2026):
+
+| Valor | Significado |
+|---|---|
+| `"DD/MM/AAAA HH:MM"` ou `"DD/MM/AAAA"` | assumiu nessa data e **continua** na função |
+| `("DD/MM/AAAA HH:MM", "DD/MM/AAAA")` | assumiu e **deixou** a função — janela fechada |
+
+Sem hora, o **início** vale desde 00:00 e o **fim** vale até **23:59:59** daquele dia (a data final
+é inclusiva: o dia inteiro conta).
+
+- **EDUARDA BORGES — triagem de Monte Alto de 04/09/2026 12:00 ATÉ 18/09/2026.** Assumiu o recebimento e
   direcionamento no meio do dia em que a Katariny saiu. A data tem **hora** porque a passagem de
   bastão foi medida na transcrição e é limpa: em **04/09** a Katariny fez 31 repasses, **todos de
   manhã** (07h às 11h) e nenhum à tarde; a Eduarda fez 14, **todos à tarde** (13:35 às 16:13) e
@@ -156,21 +203,25 @@ data em que assumiu a triagem. A consulta passou a ser feita pela função `eh_t
   Demais medições: agosto/2026 inteiro = **19 repasses no mês** (colaboradora comum);
   01 a 03/09 = 3; 08/09 a 11/09 = **271 em 4 dias úteis** (80, 65, 65 e 61 por dia) — a maior da
   unidade, contra 31 da Laysa no mesmo período.
-  Formato aceito em `PAPEL_TRIAGEM_DESDE`: `"DD/MM/AAAA HH:MM"` ou `"DD/MM/AAAA"` (sem hora vale
-  desde 00:00).
+- **FIM em 18/09/2026 (usuário, 26/09/2026).** Ela **não foi desligada** — apenas deixou a função e
+  segue na equipe de Monte Alto como colaboradora comum, então **não entra em `DESLIGADOS`** e
+  continua sendo avaliada normalmente de 19/09 em diante, pela régua comum ("resolveu sem
+  repassar"). O fim ficou **sem hora**, no dia inteiro de 18/09, porque o usuário deu a data em
+  dia — diferente do início, cuja hora foi medida na passagem de bastão.
 - **Como a vigência é conferida** (duas medidas, de propósito):
-  - **critério 6 dela**: é agregado do período inteiro, não tem data por atendimento. Vale a régua
-    de triagem quando o período **termina** em/depois da data de início, ou seja, quando o período
-    tem pelo menos um pedaço de vigência (`periodo_fim`, novo no cabeçalho). Assim a rodada mensal
-    de **09/2026 usa a régua de triagem** (correta da tarde de 04/09 em diante — só 3 repasses do
-    mês ficaram antes) e agosto/julho ficam intactos;
+  - **critério 6 dela** (`eh_triagem_periodo`): é agregado do período inteiro, não tem data por
+    atendimento. Vale a régua de triagem quando o período avaliado **se sobrepõe** à janela da
+    função — usa `periodo_ini` e `periodo_fim` do cabeçalho. Assim a rodada mensal de **09/2026 usa
+    a régua de triagem** (a janela 04–18/09 está dentro do mês), agosto/julho ficam intactos e uma
+    semana **inteiramente posterior a 18/09** (ex.: 21 a 25/09) já sai pela **régua comum**;
   - **regras 3.1 e 3.2/3.3 (perdão dos colegas)**: ali existe a data **e hora** exatas do carimbo,
     então a vigência é conferida **carimbo a carimbo** — chamado entregue por ela na **manhã** de
     04/09 não conta como "veio da triagem"; um da **tarde** do mesmo dia conta.
-- ⚠️ **Decidido pelo usuário em 19/09/2026: NÃO separar os dias anteriores à vigência dentro do
-  mesmo mês.** Na rodada mensal de 09/2026 os dias 01 a 03/09 dela (3 repasses) entram na régua de
-  triagem junto com o resto do mês. O critério 6 continua com **uma base e um texto só**, e isso é
-  de propósito, não é pendência. Só reabrir se o usuário pedir.
+- ⚠️ **Decidido pelo usuário em 19/09/2026 e reconfirmado em 26/09/2026: NÃO separar, dentro do
+  mesmo mês, os dias fora da vigência.** Na rodada mensal de 09/2026 tanto os dias 01 a 03/09
+  (3 repasses, antes de assumir) quanto os dias 19 a 30/09 (~8 dias úteis, depois de sair) entram
+  na régua de triagem junto com o resto do mês. O critério 6 continua com **uma base e um texto
+  só**, e isso é de propósito, não é pendência. Só reabrir se o usuário pedir.
 - ⚠️ **Efeito conhecido e aceito no período 31/08 a 04/09/2026:** ele termina na tarde da virada,
   então pela regra do `periodo_fim` a semana inteira sai pela régua de triagem — o critério 6 dela
   vai de *"59 de 76 sem repasse (78%)"* para *"76 de 76 (100%)"* —, embora ela só tenha exercido a
@@ -185,6 +236,19 @@ data em que assumiu a triagem. A consulta passou a ser feita pela função `eh_t
   Semana 31/08 a 04/09: muda só o relatório dela, pelo motivo explicado acima. Conferida também a
   virada do meio-dia carimbo a carimbo (11:59 = não é triagem, 12:00 e 13:35 = é) e a vigência em
   8 períodos diferentes.
+- **Testado de novo em 26/09/2026**, ao acrescentar o fim da vigência. Rodadas ANTES x DEPOIS sobre
+  4 transcrições reais de Monte Alto (agosto mensal; 31/08 a 04/09; 07 a 11/09; 14 a 18/09):
+  **saída idêntica arquivo por arquivo nas quatro** — nenhum pacote já entregue muda, porque todos
+  terminam em 18/09 ou antes. O crítério 6 dela continua em *"direcionamento correto em 357 de 357
+  (100%)"* na semana 07–11/09 e *"398 de 398 (100%)"* na semana 14–18/09.
+  Vigência conferida em 9 carimbos (04/09 11:59 = não; 12:00 e 13:35 = sim; 18/09 07:30 e 23:59 =
+  sim; 19/09 00:00 e 08:00 = não; 25/09 = não) e em 7 períodos (julho e agosto = régua comum;
+  31/08–04/09, 07–11/09, 14–18/09 e mensal 09/2026 = triagem; **21–25/09 = régua comum**).
+- ⚠️ **Pendência aberta em 26/09/2026:** o usuário informou que **outra pessoa assumiu a triagem de
+  Monte Alto a partir de 19/09**, mas o **nome ainda não foi cadastrado** aqui. Enquanto isso, de
+  19/09 em diante não há ninguém marcado como triagem em Monte Alto — e os **colegas** perdem o
+  perdão das regras 3.1/3.3 ("o chamado veio da triagem") nesse período. Cadastrar o nome em
+  `PAPEL_TRIAGEM_DESDE` com vigência a partir de 19/09 antes de rodar qualquer período posterior.
 
 ## Critério 8 — "Transformar o Não em Busca por Soluções" (revisão 07/08/2026)
 
@@ -287,7 +351,7 @@ coordenadores que os pacotes vão. Vale para **mensal e acompanhamento** (semana
 | Coordenador | Departamento | Equipe |
 |---|---|---|
 | Thaina de Ponti | Departamento Pessoal e Onboarding | Eduarda Borges, **Laysa Malagutti** (entra aqui como *Onboarding*) |
-| Euller Boer | Departamento Pessoal | Jenifer Garcia, Gabriela Rossi |
+| Euller Boer | Departamento Pessoal e Operações | Jenifer Garcia, Gabriela Rossi, **Gilmar Soares** (contratado, entra em 19/09/2026, como *Operações*) |
 | Diesley Queiroz | Fiscal/Contábil | Stephanie Ferraz, Bianca Alves, Jairo Ravasi, Miguel Malagutti, Yasmin Rodrigues, Carla Seghessi, Eduarda Stefani, Julia Mathias, Natália Santos, Sophia Magri, Beatriz Papa, Eduarda Zucchi, **Alexander Michel Garcia**, **Kamilly Vitoria** (contratados, entram em 12/09/2026) |
 | Lucas Malagutti (diretor) | Legal | Ricardo Buzeto **+ o consolidado da unidade inteira** |
 
@@ -426,6 +490,29 @@ coordenadores que os pacotes vão. Vale para **mensal e acompanhamento** (semana
 >
 > ⚠️ **Alexander Michel Garcia** não tem parentesco declarado com **Jenifer Garcia** (equipe do
 > Euller) — mesmo sobrenome, equipes diferentes, não confundir na hora de mexer nas listas.
+
+> **Gilmar Soares entra na equipe do Euller Boer (19/09/2026).** Colaborador **contratado** —
+> não é troca de equipe, ninguém sai de lista nenhuma. É do setor de **Operações**, um
+> departamento que **não existia** no sistema até então: por isso a equipe do Euller virou
+> **mista**, com o rótulo composto **"Departamento Pessoal e Operações"** e `depto_membro`
+> dizendo quem é de qual setor — o mesmo recurso das equipes da Thaina e do Lucas. **O rótulo
+> composto foi escolhido pelo usuário**, não deduzido. A equipe vai de 2 para **3 membros**
+> (4 pessoas no documento, contando o coordenador).
+>
+> **Nada mudou no agente de leitura** — Monte Alto é lista por exclusão, então ele já é marcado
+> e lido sozinho. Só o `EQUIPES` do `analisar.py` foi editado.
+>
+> ⚠️ Vale das rodadas **novas** em diante (decisão do usuário). Em rodada retroativa ele cai no
+> aviso de *"declarado na equipe mas ausente na transcrição"*, igual ao Alexander e à Kamilly, e
+> **nenhuma nota muda**. O que muda numa rodada retroativa é apenas o **rótulo** do pacote do
+> Euller, que passa a exibir "Departamento Pessoal e Operações" mesmo em meses em que ele ainda
+> não estava — efeito cosmético conhecido, aceito pelo usuário. Se um dia incomodar, seria
+> preciso criar uma lista de DATA DE ENTRADA (como o `PAPEL_TRIAGEM_DESDE` fez para a triagem);
+> **não implementar sem o usuário pedir**.
+>
+> ⚠️ **Confira a grafia na primeira rodada com ele.** "GILMAR SOARES" veio do usuário, não da
+> transcrição. Se o Gestta trouxer sobrenome a mais, o relatório dele não sai no pacote do
+> Euller e o console avisa — a correção é ajustar o nome no `EQUIPES`.
 
 Regras decididas junto com a divisão:
 

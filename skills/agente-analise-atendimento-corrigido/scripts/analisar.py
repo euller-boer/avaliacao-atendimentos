@@ -499,40 +499,97 @@ PAPEL_TRIAGEM = {"LAYSA MALAGUTTI", "ANA CHUECO", "KATARINY DE SIMONE"}
 # Extensão: para outra pessoa que MUDAR de função, acrescentar aqui com a data — "DD/MM/AAAA"
 # ou "DD/MM/AAAA HH:MM" quando a virada tiver hora conhecida (sem hora, vale desde 00:00).
 # Para quem sempre fez triagem, continuar usando o set PAPEL_TRIAGEM acima.
-PAPEL_TRIAGEM_DESDE = {"EDUARDA BORGES": "04/09/2026 12:00"}
+#
+# FIM DA VIGÊNCIA (usuário, 26/09/2026) — a função de triagem também TERMINA. O valor passou a
+# aceitar duas formas:
+#   "DD/MM/AAAA HH:MM"                       -> assumiu nessa data e CONTINUA na função;
+#   ("DD/MM/AAAA HH:MM", "DD/MM/AAAA HH:MM") -> assumiu e DEIXOU a função (janela fechada).
+# A data final é INCLUSIVA: sem hora, vale até as 23:59:59 daquele dia (o dia inteiro conta).
+#
+# EDUARDA BORGES — o usuário informou em 26/09/2026 que a triagem dela vale de 04/09 ATÉ
+# 18/09/2026. De 19/09 em diante ela volta a ser medida pela régua comum ("resolveu sem
+# repassar"). O fim ficou SEM hora, no dia inteiro de 18/09, porque o usuário deu a data em
+# dia, não em hora — diferente do início, cuja hora foi medida na passagem de bastão.
+PAPEL_TRIAGEM_DESDE = {"EDUARDA BORGES": ("04/09/2026 12:00", "18/09/2026")}
 
 
-def _dt_vigencia(txt):
-    """Converte a data de PAPEL_TRIAGEM_DESDE em datetime.
+def _dt_vigencia(txt, fim=False):
+    """Converte uma data de PAPEL_TRIAGEM_DESDE em datetime.
 
-    Aceita "DD/MM/AAAA HH:MM" (virada com hora conhecida, caso da Eduarda Borges em
-    04/09/2026 12:00) e "DD/MM/AAAA" (sem hora — vale desde 00:00 daquele dia).
+    Aceita "DD/MM/AAAA HH:MM" (virada com hora conhecida, caso do início da Eduarda Borges em
+    04/09/2026 12:00) e "DD/MM/AAAA" (sem hora).
+    Sem hora, o INÍCIO vale desde 00:00 daquele dia e o FIM (`fim=True`) vale até 23:59:59 —
+    ou seja, a data final informada em dia conta o dia inteiro.
     """
     txt = (txt or "").strip()
     for fmt in ("%d/%m/%Y %H:%M", "%d/%m/%Y"):
         try:
-            return datetime.strptime(txt, fmt)
+            d = datetime.strptime(txt, fmt)
         except ValueError:
             continue
+        if fim and fmt == "%d/%m/%Y":
+            d = d.replace(hour=23, minute=59, second=59)
+        return d
     raise ValueError("data de vigencia invalida em PAPEL_TRIAGEM_DESDE: %r" % txt)
+
+
+def _janela_triagem(nome):
+    """Devolve a janela (inicio, fim) de vigencia da triagem do `nome`, ou None.
+
+    `fim` é None quando a pessoa continua na função. Aceita as duas formas de valor descritas
+    em PAPEL_TRIAGEM_DESDE (string = janela aberta; tupla = janela fechada).
+    """
+    v = PAPEL_TRIAGEM_DESDE.get((nome or "").strip().upper())
+    if not v:
+        return None
+    if isinstance(v, str):
+        return _dt_vigencia(v), None
+    ini, fim = (list(v) + [None])[:2]
+    return _dt_vigencia(ini), (_dt_vigencia(fim, fim=True) if fim else None)
 
 
 def eh_triagem(nome, quando=None):
     """O `nome` exerce o PAPEL DE TRIAGEM na data `quando`?
 
-    `quando` é datetime (data do carimbo, ou fim do período avaliado). Quem está em
-    PAPEL_TRIAGEM vale sempre, com ou sem data. Quem está em PAPEL_TRIAGEM_DESDE só vale a
-    partir da data de vigência — e, sem data informada, NÃO vale (conservador de propósito:
-    é melhor não aplicar a régua especial do que aplicá-la a um período em que a pessoa
-    ainda não tinha a função).
+    `quando` é o datetime do CARIMBO. Quem está em PAPEL_TRIAGEM vale sempre, com ou sem data.
+    Quem está em PAPEL_TRIAGEM_DESDE só vale DENTRO da janela de vigência — e, sem data
+    informada, NÃO vale (conservador de propósito: é melhor não aplicar a régua especial do que
+    aplicá-la a um período em que a pessoa não tinha a função).
+    Para o critério 6, que é agregado do período e não tem data por atendimento, usar
+    eh_triagem_periodo().
     """
     nm = (nome or "").strip().upper()
     if nm in PAPEL_TRIAGEM:
         return True
-    d = PAPEL_TRIAGEM_DESDE.get(nm)
-    if not d or quando is None:
+    j = _janela_triagem(nm)
+    if j is None or quando is None:
         return False
-    return quando >= _dt_vigencia(d)
+    ini, fim = j
+    return quando >= ini and (fim is None or quando <= fim)
+
+
+def eh_triagem_periodo(nome, p_ini, p_fim):
+    """O `nome` exerce o PAPEL DE TRIAGEM em algum pedaço do período avaliado?
+
+    O critério 6 é agregado do período inteiro, então a pergunta não é "nesta data" e sim "o
+    período avaliado SE SOBREPÕE à janela em que a pessoa exerceu a função?". Uma decisão do
+    usuário em 19/09/2026 mantém o critério 6 com UMA base e UM texto: basta haver sobreposição
+    para o período inteiro sair pela régua de triagem.
+    Sem as datas do período (cabeçalho ilegível) devolve False, pelo mesmo motivo conservador
+    de eh_triagem().
+    """
+    nm = (nome or "").strip().upper()
+    if nm in PAPEL_TRIAGEM:
+        return True
+    j = _janela_triagem(nm)
+    if j is None or p_fim is None:
+        return False
+    ini, fim = j
+    if p_fim < ini:
+        return False                       # o período todo é anterior à posse da função
+    if fim is not None and (p_ini is None or p_ini > fim):
+        return False                       # o período todo é posterior à saída da função
+    return True
 
 
 TRIAGEM_JANELA_REBOTE_MIN = 24 * 60  # janela p/ considerar que o destino corrigiu a rota
@@ -737,8 +794,29 @@ EQUIPES = {
          "depto_membro": {"THAINA DE PONTI": "Departamento Pessoal",
                           "EDUARDA BORGES": "Departamento Pessoal",
                           "LAYSA MALAGUTTI": "Onboarding"}},
-        {"coordenador": "EULLER BOER", "departamento": "Departamento Pessoal",
-         "membros": ["JENIFER GARCIA", "GABRIELA ROSSI"]},
+        # GILMAR SOARES entra aqui em 19/09/2026: colaborador CONTRATADO (nao e troca de
+        # equipe, ninguem sai de lista nenhuma), do setor de OPERACOES — um departamento que
+        # nao existia no sistema ate hoje. Por ser de setor diferente do da equipe, esta
+        # virou MISTA: rotulo composto "Departamento Pessoal e Operacoes" e `depto_membro`
+        # dizendo quem e de qual setor, o mesmo recurso das equipes da Thaina e do Lucas.
+        # O rotulo composto foi ESCOLHIDO PELO USUARIO em 19/09/2026 — nao foi deduzido.
+        # Nada muda no agente de leitura: Monte Alto e lista por EXCLUSAO (todos que nao sao
+        # de Taquaritinga), entao ele ja e marcado e lido sozinho.
+        # Vale das rodadas NOVAS em diante (decisao do usuario). Em rodada retroativa ele
+        # aparece como "declarado na equipe mas ausente na transcricao" — e so aviso de
+        # console, nao quebra a analise, e e o comportamento esperado para quem ainda nao
+        # tinha entrado. Nao existe lista de DATA DE ENTRADA no sistema; se um dia isso
+        # incomodar, ai sim se cria uma — nao implementar sem o usuario pedir.
+        # ATENCAO na PRIMEIRA rodada com ele: a grafia veio do usuario, nao da transcricao.
+        # Se o Gestta trouxer nome diferente (sobrenome a mais, "Gilmar Soares da Silva"),
+        # montar_equipes() nao casa, o relatorio dele NAO sai neste pacote e o console avisa.
+        # A correcao e ajustar o nome AQUI, nunca na transcricao.
+        {"coordenador": "EULLER BOER", "departamento": "Departamento Pessoal e Operações",
+         "membros": ["JENIFER GARCIA", "GABRIELA ROSSI", "GILMAR SOARES"],
+         "depto_membro": {"EULLER BOER": "Departamento Pessoal",
+                          "JENIFER GARCIA": "Departamento Pessoal",
+                          "GABRIELA ROSSI": "Departamento Pessoal",
+                          "GILMAR SOARES": "Operações"}},
         # Eduarda ("Duda") Zucchi passou para a equipe do Diesley em 26/08/2026 (3a troca
         # dela: Lucas -> Thaina em 11/08, Thaina -> Lucas em 24/08, Lucas -> Diesley agora).
         # A TROCA de equipe e feita TIRANDO o nome da equipe antiga e pondo na nova — foi o
@@ -857,6 +935,41 @@ DESLIGADOS = {
 }
 
 
+# ------------------------------------------------- contatos fora das metricas
+# Chamados que a coordenacao mandou NAO contar para um colaborador especifico, mesmo
+# estando na transcricao. E diferente de DESLIGADOS: la sai a PESSOA inteira; aqui sai
+# so o ATENDIMENTO daquele contato, e so do colaborador listado. O mesmo contato falado
+# com outra pessoa continua contando normalmente.
+#
+# ONDE a exclusao acontece: no main(), DEPOIS da trava de contagem do parse. O
+# atendimento continua na transcricao e no bloco de integridade — o que sai e so a
+# CONTA. Tirar no agente de leitura quebraria o congelamento e obrigaria a refazer a
+# transcricao inteira; editar a transcricao pronta faz ler_cabecalho()/parse() abortarem.
+#
+# A chave e o NOME EXATO da linha "Contato:" do Gestta, em MAIUSCULAS, e a comparacao e
+# EXATA de proposito: "SIMONI" nao pode arrastar "Raphael de Simoni" (citado dentro de
+# uma conversa da Procorpus) nem "Eloisa Simone", e o cliente de verdade
+# "Schua - 371 EGV PHARMA ..." tem que continuar valendo.
+#
+# Decisao do usuario em 19/09/2026:
+#   EULLER BOER / "Simoni" — ex-funcionaria da EGV PHARMA que procurou o Euller em nome
+#   proprio (04/09/2026, 10:06: "Aqui e a Simoni que trabalhava na EGV PHARMA. Gostaria
+#   de falar com Euller"). Nao e chamado de cliente, entao nao entra em nota, SLA nem
+#   volume. Vale para TODO periodo, inclusive rodadas retroativas.
+#   Obs.: na transcricao de 31/08 a 04/09/2026 esse chamado esta na secao da KATARINY
+#   DE SIMONE (a triagem recebeu e repassou), e por isso NAO sai de ninguem hoje — a
+#   regra vale para quando o contato cair direto no Euller.
+CONTATOS_FORA = {
+    "EULLER BOER": {"SIMONI"},
+}
+
+
+def contato_fora(nome, contato):
+    """True quando o atendimento deste `contato` nao conta para `nome` (CONTATOS_FORA)."""
+    fora = CONTATOS_FORA.get((nome or "").strip().upper())
+    return bool(fora) and (contato or "").strip().upper() in fora
+
+
 def _saida_dt(nome):
     """datetime da saida de `nome`, ou None se a pessoa nao esta na lista."""
     d = DESLIGADOS.get((nome or "").strip().upper())
@@ -911,7 +1024,11 @@ def montar_equipes(unidade, team, periodo_ini=None):
     sem_equipe = [t["nome"] for t in team if t["nome"].upper() not in usados]
     return equipes, sem_equipe
 
-def escanear_transferencias_saida(lines, tot_map):
+def escanear_transferencias_saida(lines, tot_map, ids_fora=None):
+    # `ids_fora`: atendimentos tirados da conta em CONTATOS_FORA. Eles seguem sendo LIDOS
+    # nas duas primeiras passadas (o contexto de notas e falas do cliente continua valendo
+    # para as regras 3.2/3.3 dos OUTROS atendimentos) e so ficam de fora da CONTAGEM.
+    ids_fora = ids_fora or set()
     nomes = sorted(tot_map.keys(), key=len, reverse=True)
     name_map = {n.upper(): n for n in tot_map}
     pat = re.compile(r"Atendimento transferido por (" + "|".join(re.escape(n) for n in nomes) + r") para (.+?):?\s*$", re.I)
@@ -1058,6 +1175,10 @@ def escanear_transferencias_saida(lines, tot_map):
 
     # 3a passada: contagem do criterio 6.
     for dt, nome_de, destino, contato, _texto, aid, cliente, caixa in carimbos:
+        # chamado tirado da conta em CONTATOS_FORA: nao conta, nao vira exemplo e nao
+        # gera rebote — do mesmo jeito que ele nao aparece nos demais criterios.
+        if aid in ids_fora:
+            continue
         # AUTO-REPASSE (regra confirmada pela coordenacao, 25/08/2026): o carimbo
         # "transferido por X para o proprio X" e como a equipe PUXA um atendimento
         # que nao passou pela triagem — o oposto de repassar. Nao entra na contagem
@@ -1381,10 +1502,10 @@ def analisar_colab(nm, ats, hdr, transf_saida_ids=None, transf_saida_ex=None, tr
     transf_real = len(transf_saida_ids)
     overlap6 = len(transf_saida_ids & ids_com_msg_propria)
 
-    # hdr["periodo_fim"]: o criterio 6 e agregado do periodo inteiro, entao a vigencia de
-    # PAPEL_TRIAGEM_DESDE e conferida no FIM do periodo — basta o periodo alcancar a data de
-    # inicio da funcao. Quem esta no set PAPEL_TRIAGEM nao depende disso e vale sempre.
-    if eh_triagem(nm, hdr.get("periodo_fim")):
+    # O criterio 6 e agregado do periodo inteiro, entao a vigencia de PAPEL_TRIAGEM_DESDE e
+    # conferida por SOBREPOSICAO entre o periodo avaliado e a janela em que a pessoa exerceu a
+    # funcao (ver eh_triagem_periodo). Quem esta no set PAPEL_TRIAGEM vale sempre.
+    if eh_triagem_periodo(nm, hdr.get("periodo_ini"), hdr.get("periodo_fim")):
         # Papel de TRIAGEM: repassar é a função, não uma falha. O critério mede se o
         # direcionamento foi certo (destino não precisou corrigir a rota em até 24h),
         # não "resolveu sem repassar".
@@ -1748,7 +1869,23 @@ def main():
                   f"mas o nome veio na transcricao. Refaca a leitura sem marca-lo(a). "
                   f"(Periodos que incluem dias trabalhados por ele(a) sao avaliados normal.)")
 
-    transf_saida_ids, transf_saida_ex, transf_saida_rebote, transf_perdoados, transf_delegados, transf_errados = escanear_transferencias_saida(lines, hdr["tot_map"])
+    # chamados que nao contam para o colaborador (ver CONTATOS_FORA). Roda DEPOIS da
+    # trava acima de proposito: a transcricao continua integra e conferida; o que sai e
+    # so a CONTA. Os ids saem tambem do criterio 6, senao o repasse de um atendimento
+    # que nao existe mais na nota continuaria pesando.
+    ids_fora = set()
+    for nm in sorted(colabs):
+        fora = [a for a in colabs[nm] if contato_fora(nm, a.get("contato"))]
+        if not fora:
+            continue
+        ids_fora.update(a["id"] for a in fora)
+        colabs[nm] = [a for a in colabs[nm] if not contato_fora(nm, a.get("contato"))]
+        for a in fora:
+            print(f"  FORA DAS METRICAS: {nm} - contato '{a['contato']}' "
+                  f"(atendimento {a['id']}) nao entra na nota. Decisao registrada em "
+                  f"CONTATOS_FORA; o atendimento continua na transcricao.")
+
+    transf_saida_ids, transf_saida_ex, transf_saida_rebote, transf_perdoados, transf_delegados, transf_errados = escanear_transferencias_saida(lines, hdr["tot_map"], ids_fora)
 
     acomp = hdr["periodo_tipo"] != "mes"
     team = []
