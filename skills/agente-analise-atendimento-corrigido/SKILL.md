@@ -208,27 +208,64 @@ Sem hora, o **início** vale desde 00:00 e o **fim** vale até **23:59:59** daqu
   continua sendo avaliada normalmente de 19/09 em diante, pela régua comum ("resolveu sem
   repassar"). O fim ficou **sem hora**, no dia inteiro de 18/09, porque o usuário deu a data em
   dia — diferente do início, cuja hora foi medida na passagem de bastão.
+- **JENIFER GARCIA — triagem de Monte Alto de 21/09/2026 a 24/09/2026** (usuário, 26/09/2026).
+  Pegou a função depois da Eduarda. **Não há buraco entre as duas**: a Eduarda terminou na sexta
+  18/09 e a Jenifer começou na segunda 21/09 — 19 e 20/09 são sábado e domingo.
+  ⚠️ **A grafia é `JENIFER`, com UM "f" só.** É o nome canônico do Gestta (601 ocorrências de
+  "Jenifer Garcia" nas transcrições contra 9 de "Jeniffer", todas dentro do texto de mensagem) e é
+  como ela aparece em `EQUIPES`. `APELIDOS_INSTRUCAO` mapeia `"JENIFFER" -> "JENIFER"` para o texto
+  das mensagens, mas a **chave** de `PAPEL_TRIAGEM_DESDE` tem de ser o nome canônico: com dois "f"
+  a régua simplesmente não pega e **o erro passa silencioso**.
+  Perfil dela como colaboradora comum (medido): agosto/2026 = 93 de 114 sem repasse (82%);
+  07–11/09 = 31 de 33 (94%); 14–18/09 = 33 de 37 (89%) — ela quase não transfere.
+
+#### Cobertura mínima do período — `TRIAGEM_COBERTURA_MIN` (usuário, 26/09/2026)
+
+Para o critério 6 sair pela régua de triagem não basta **haver** sobreposição entre o período e a
+janela da função: a interseção precisa cobrir **pelo menos um terço dos DIAS ÚTEIS do período**.
+
+**Por que entrou:** só a sobreposição bastava enquanto a única janela era a da Eduarda, que pegava
+quase metade do mês. Com a Jenifer — triagem em **4 dos 21 dias úteis** de setembro, **19%** — a
+sobreposição sozinha lhe daria a régua de triagem no **mês inteiro**; e como o rebote do critério 6
+quase nunca dispara, isso vira nota ~9,5 de graça em 17 dias úteis nos quais ela era colaboradora
+comum.
+
+⚠️ **Os FERIADOS entram na conta** (`_dia_util`). Contar só dia de semana daria **50%** para a
+Eduarda em vez de **47,6%**, porque **07/09/2026 (Independência) caiu numa segunda dentro da janela
+dela** — um corte "na metade" a deixaria de fora por pouco. Foi por isso que o corte ficou em **um
+terço**: separa os dois casos com folga dos dois lados (Eduarda 47,6%, Jenifer 19,0%) e não deixa
+ninguém em cima da linha.
+
+| Período | Eduarda | Jenifer |
+|---|---|---|
+| julho e agosto/2026 | não (0%) | não (0%) |
+| 31/08 a 04/09 | **não** (1/5 = 20%) | não (0%) |
+| 07 a 11/09 | sim (4/4 = 100%) | não (0%) |
+| 14 a 18/09 | sim (5/5 = 100%) | não (0%) |
+| 21 a 25/09 | não (0%) | **sim** (4/5 = 80%) |
+| 28/09 a 02/10 | não (0%) | não (0%) |
+| **mensal 09/2026** | **sim** (10/21 = 47,6%) | **não** (4/21 = 19,0%) |
+
+✅ **Efeito colateral bom:** a trava **corrigiu sozinha** a distorção que estava documentada na
+semana **31/08 a 04/09**. Aquele período agora cobre só 20% e volta à régua comum — o critério 6 da
+Eduarda vai de *"76 de 76 (100%)"* de volta para *"59 de 76 sem repasse (78%)"*, que é exatamente o
+que o pacote **entregue na época** trazia. A ressalva "se um dia incomodar, a trava é exigir uma
+fração mínima" deixou de ser pendência: foi implementada.
 - **Como a vigência é conferida** (duas medidas, de propósito):
   - **critério 6 dela** (`eh_triagem_periodo`): é agregado do período inteiro, não tem data por
     atendimento. Vale a régua de triagem quando o período avaliado **se sobrepõe** à janela da
-    função — usa `periodo_ini` e `periodo_fim` do cabeçalho. Assim a rodada mensal de **09/2026 usa
-    a régua de triagem** (a janela 04–18/09 está dentro do mês), agosto/julho ficam intactos e uma
-    semana **inteiramente posterior a 18/09** (ex.: 21 a 25/09) já sai pela **régua comum**;
+    função **E** a interseção cobre pelo menos **um terço dos dias úteis** do período (ver
+    `TRIAGEM_COBERTURA_MIN`) — usa `periodo_ini` e `periodo_fim` do cabeçalho. Ver a tabela de
+    períodos medidos logo acima;
   - **regras 3.1 e 3.2/3.3 (perdão dos colegas)**: ali existe a data **e hora** exatas do carimbo,
     então a vigência é conferida **carimbo a carimbo** — chamado entregue por ela na **manhã** de
     04/09 não conta como "veio da triagem"; um da **tarde** do mesmo dia conta.
 - ⚠️ **Decidido pelo usuário em 19/09/2026 e reconfirmado em 26/09/2026: NÃO separar, dentro do
-  mesmo mês, os dias fora da vigência.** Na rodada mensal de 09/2026 tanto os dias 01 a 03/09
-  (3 repasses, antes de assumir) quanto os dias 19 a 30/09 (~8 dias úteis, depois de sair) entram
-  na régua de triagem junto com o resto do mês. O critério 6 continua com **uma base e um texto
-  só**, e isso é de propósito, não é pendência. Só reabrir se o usuário pedir.
-- ⚠️ **Efeito conhecido e aceito no período 31/08 a 04/09/2026:** ele termina na tarde da virada,
-  então pela regra do `periodo_fim` a semana inteira sai pela régua de triagem — o critério 6 dela
-  vai de *"59 de 76 sem repasse (78%)"* para *"76 de 76 (100%)"* —, embora ela só tenha exercido a
-  função em meio dia dos cinco. O pacote daquela semana **já foi entregue pela régua comum e o
-  usuário decidiu não regerá-lo**, então isso só apareceria se alguém rerodasse o período. A trava,
-  se um dia incomodar, é exigir que a vigência cubra uma fração mínima do período — **não
-  implementar sem o usuário pedir**.
+  mesmo período, os dias fora da vigência** — desde que a cobertura mínima seja atingida. Na
+  mensal de 09/2026 a **Eduarda** passa na trava (47,6%), então os dias 01 a 03/09 (antes de
+  assumir) e 19 a 30/09 (depois de sair) entram na régua de triagem junto com o resto do mês; o
+  critério 6 continua com **uma base e um texto só**. A **Jenifer** não passa (19,0%) e sai pela
+  régua comum no mês inteiro. Isso é de propósito, não é pendência.
 - **Testado em 19/09/2026** sobre as transcrições reais. Semana 07-09 a 11-09: muda **só** o
   relatório dela (critério 6 passou de "86 de 357 resolvidos sem repasse (24%)", que ainda entrava
   como ponto de melhoria, para "direcionamento correto em 357 de 357 (100%)" e destaque de boa
@@ -244,11 +281,19 @@ Sem hora, o **início** vale desde 00:00 e o **fim** vale até **23:59:59** daqu
   Vigência conferida em 9 carimbos (04/09 11:59 = não; 12:00 e 13:35 = sim; 18/09 07:30 e 23:59 =
   sim; 19/09 00:00 e 08:00 = não; 25/09 = não) e em 7 períodos (julho e agosto = régua comum;
   31/08–04/09, 07–11/09, 14–18/09 e mensal 09/2026 = triagem; **21–25/09 = régua comum**).
-- ⚠️ **Pendência aberta em 26/09/2026:** o usuário informou que **outra pessoa assumiu a triagem de
-  Monte Alto a partir de 19/09**, mas o **nome ainda não foi cadastrado** aqui. Enquanto isso, de
-  19/09 em diante não há ninguém marcado como triagem em Monte Alto — e os **colegas** perdem o
-  perdão das regras 3.1/3.3 ("o chamado veio da triagem") nesse período. Cadastrar o nome em
-  `PAPEL_TRIAGEM_DESDE` com vigência a partir de 19/09 antes de rodar qualquer período posterior.
+- **Testado em 26/09/2026 ao cadastrar a Jenifer e a trava de cobertura**, sobre as mesmas 4
+  transcrições reais. Só **um** arquivo mudou em todas as rodadas: o da **Eduarda na semana 31/08 a
+  04/09**, que voltou de *"direcionamento correto em 76 de 76 (100%)"* para *"59 de 76 resolvidos
+  sem repasse (78%)"* — ou seja, **voltou a bater com o pacote entregue na época**. Agosto mensal,
+  07–11/09 e 14–18/09: **idênticos arquivo por arquivo**. Vigência da Jenifer conferida em 7
+  carimbos (18/09 e 20/09 = não; 21/09 00:00 e 07:30 = sim; 24/09 23:59 = sim; 25/09 e 28/09 = não)
+  e a trava em 8 períodos (tabela acima). Conferido também que a grafia errada `JENIFFER GARCIA`
+  devolve **False** — é o motivo do aviso sobre o nome canônico.
+- ⚠️ **Pendência aberta em 26/09/2026:** a Jenifer saiu da triagem em **24/09** e o usuário informou
+  que **outra pessoa assumiu**, mas o **nome ainda não foi passado**. Enquanto não for cadastrado,
+  a **sexta 25/09 em diante** fica sem ninguém marcado como triagem em Monte Alto — e os **colegas**
+  perdem o perdão das regras 3.1/3.3 ("o chamado veio da triagem") nesse período. Perguntar o nome
+  (e conferir a grafia no Gestta) **antes** de rodar qualquer período que alcance 25/09.
 
 ## Critério 8 — "Transformar o Não em Busca por Soluções" (revisão 07/08/2026)
 

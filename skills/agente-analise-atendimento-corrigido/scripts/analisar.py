@@ -510,7 +510,20 @@ PAPEL_TRIAGEM = {"LAYSA MALAGUTTI", "ANA CHUECO", "KATARINY DE SIMONE"}
 # 18/09/2026. De 19/09 em diante ela volta a ser medida pela régua comum ("resolveu sem
 # repassar"). O fim ficou SEM hora, no dia inteiro de 18/09, porque o usuário deu a data em
 # dia, não em hora — diferente do início, cuja hora foi medida na passagem de bastão.
-PAPEL_TRIAGEM_DESDE = {"EDUARDA BORGES": ("04/09/2026 12:00", "18/09/2026")}
+#
+# JENIFER GARCIA — de 21/09/2026 a 24/09/2026 (usuário, 26/09/2026). Pegou a triagem de Monte
+# Alto depois da Eduarda. NÃO há buraco entre as duas: a Eduarda terminou na SEXTA 18/09 e a
+# Jenifer começou na SEGUNDA 21/09 — 19 e 20/09 são sábado e domingo.
+# ⚠️ A grafia certa é JENIFER, com UM "f" só. É assim que o Gestta traz (601 ocorrências de
+# "Jenifer Garcia" nas transcrições, contra 9 de "Jeniffer", todas dentro do texto de mensagem)
+# e é assim que ela está em EQUIPES. APELIDOS_INSTRUCAO já mapeia "JENIFFER" -> "JENIFER" para
+# o texto das mensagens, mas a CHAVE daqui tem de bater com o nome canônico, senão a régua
+# simplesmente não pega e o erro passa silencioso.
+# ⚠️ Perfil MUITO diferente do da Eduarda: como colaboradora comum ela quase não repassa —
+# agosto/2026 = 93 de 114 sem repasse (82%); 07-11/09 = 31 de 33 (94%); 14-18/09 = 33 de 37
+# (89%). Ver o aviso sobre a rodada MENSAL de 09/2026 logo abaixo, em eh_triagem_periodo.
+PAPEL_TRIAGEM_DESDE = {"EDUARDA BORGES": ("04/09/2026 12:00", "18/09/2026"),
+                       "JENIFER GARCIA": ("21/09/2026", "24/09/2026")}
 
 
 def _dt_vigencia(txt, fim=False):
@@ -568,13 +581,48 @@ def eh_triagem(nome, quando=None):
     return quando >= ini and (fim is None or quando <= fim)
 
 
-def eh_triagem_periodo(nome, p_ini, p_fim):
-    """O `nome` exerce o PAPEL DE TRIAGEM em algum pedaço do período avaliado?
+# COBERTURA MINIMA (usuário, 26/09/2026) — fração dos DIAS ÚTEIS do período que a janela de
+# triagem precisa cobrir para o critério 6 sair pela régua de triagem. Ver eh_triagem_periodo.
+TRIAGEM_COBERTURA_MIN = (1, 3)   # (numerador, denominador) = um terço
 
-    O critério 6 é agregado do período inteiro, então a pergunta não é "nesta data" e sim "o
-    período avaliado SE SOBREPÕE à janela em que a pessoa exerceu a função?". Uma decisão do
-    usuário em 19/09/2026 mantém o critério 6 com UMA base e UM texto: basta haver sobreposição
-    para o período inteiro sair pela régua de triagem.
+
+def _dias_uteis_no_intervalo(a, b):
+    """Quantos DIAS ÚTEIS (seg-sex, feriados descontados) existem entre `a` e `b`, inclusive."""
+    from datetime import timedelta
+    if a is None or b is None or b < a:
+        return 0
+    d, n = a.replace(hour=0, minute=0, second=0, microsecond=0), 0
+    while d <= b:
+        if _dia_util(d):
+            n += 1
+        d += timedelta(days=1)
+    return n
+
+
+def eh_triagem_periodo(nome, p_ini, p_fim):
+    """O `nome` deve ser medido pela RÉGUA DE TRIAGEM no período avaliado?
+
+    O critério 6 é agregado do período inteiro, então a pergunta não é "nesta data" e sim "a
+    pessoa exerceu a função durante uma parte relevante deste período?". São duas condições:
+
+      1. SOBREPOSIÇÃO — o período avaliado tem interseção com a janela da função; e
+      2. COBERTURA MÍNIMA — a interseção cobre pelo menos TRIAGEM_COBERTURA_MIN dos DIAS ÚTEIS
+         do período (hoje, um terço).
+
+    Por que a cobertura mínima existe (usuário, 26/09/2026): só a sobreposição bastava enquanto
+    a única janela era a da Eduarda Borges, que pegava metade do mês. Com a JENIFER GARCIA, que
+    foi triagem só de 21 a 24/09 — 4 dos 21 dias úteis de setembro, 19% —, a sobreposição sozinha
+    daria a ela a régua de triagem no MÊS INTEIRO, e como o rebote quase nunca dispara isso vira
+    nota ~9,5 de graça em 17 dias úteis nos quais ela era colaboradora comum (perfil medido: 82%
+    a 94% resolvidos SEM repasse). O corte ficou em UM TERÇO porque separa os dois casos com
+    folga dos dois lados — Eduarda 47,6%, Jenifer 19,0% — sem ninguém em cima da linha.
+    ⚠️ Os FERIADOS entram na conta (`_dia_util`). Contar só dia de semana daria 50% para a
+    Eduarda em vez de 47,6%, porque 07/09/2026 (Independência) caiu numa segunda dentro da
+    janela dela. Um corte na metade a deixaria de FORA por pouco — foi por isso que não ficou
+    na metade.
+
+    A decisão de 19/09/2026 continua valendo onde a cobertura é suficiente: o critério 6 tem UMA
+    base e UM texto, sem recortar os dias de fora da janela dentro do mesmo período.
     Sem as datas do período (cabeçalho ilegível) devolve False, pelo mesmo motivo conservador
     de eh_triagem().
     """
@@ -582,14 +630,22 @@ def eh_triagem_periodo(nome, p_ini, p_fim):
     if nm in PAPEL_TRIAGEM:
         return True
     j = _janela_triagem(nm)
-    if j is None or p_fim is None:
+    if j is None or p_fim is None or p_ini is None:
         return False
     ini, fim = j
     if p_fim < ini:
         return False                       # o período todo é anterior à posse da função
-    if fim is not None and (p_ini is None or p_ini > fim):
+    if fim is not None and p_ini > fim:
         return False                       # o período todo é posterior à saída da função
-    return True
+    # interseção entre o período avaliado e a janela da função
+    i_ini = max(p_ini, ini)
+    i_fim = p_fim if fim is None else min(p_fim, fim)
+    uteis_periodo = _dias_uteis_no_intervalo(p_ini, p_fim)
+    if uteis_periodo == 0:
+        return False
+    uteis_janela = _dias_uteis_no_intervalo(i_ini, i_fim)
+    num, den = TRIAGEM_COBERTURA_MIN
+    return uteis_janela * den >= uteis_periodo * num
 
 
 TRIAGEM_JANELA_REBOTE_MIN = 24 * 60  # janela p/ considerar que o destino corrigiu a rota
