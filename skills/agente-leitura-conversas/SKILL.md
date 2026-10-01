@@ -82,11 +82,13 @@ Gestta com atendimentos no período:
 | Graziele Anselmo | Monte Alto | 08/08/2026 | **Total** — nunca marcar, em período nenhum |
 | Graziela dos Anjos | Monte Alto | 24/08/2026 | **Total** — nunca marcar, em período nenhum |
 | Flavio Rosato | Monte Alto (era da equipe da Laysa) | 24/08/2026 | **Total** — nunca marcar, em período nenhum (era "Corte" até 01/09/2026; o usuário mudou para Total nessa data) |
+| Carla Seghessi | Monte Alto (equipe do Diesley) | 23/09/2026 | **Total** — nunca marcar, em período nenhum (decisão do usuário em 01/10/2026) |
+| Yasmin Rodrigues | Monte Alto (equipe do Diesley) | 25/09/2026 | **Total** — nunca marcar, em período nenhum (decisão do usuário em 01/10/2026) |
 | Katariny de Simone | Monte Alto (triagem, era da equipe da Laysa) | 04/09/2026 | **Corte** — não marcar em período que COMECE depois de 04/09/2026. Em período que inclua dias até 04/09 (agosto, por ex.) ela É marcada e avaliada normalmente |
 
 > **As duas regras não são a mesma coisa.** "Total" apaga a pessoa da avaliação mesmo onde ela
 > ainda tinha atendimento. "Corte" preserva o que a pessoa fez até sair, e só para de trazer o
-> nome em períodos que começam depois da saída. **Graziele, Graziela e Flavio são "Total";
+> nome em períodos que começam depois da saída. **Graziele, Graziela, Flavio, Carla Seghessi e Yasmin Rodrigues são "Total";
 > a Katariny de Simone é "Corte"** (decisão do usuário em 17/09/2026).
 >
 > ⚠️ **Katariny — o que isso muda na prática.** Em rodada NOVA (período começando depois de

@@ -62,6 +62,8 @@ unidade e gera **um Resumo da Equipe próprio** — exatamente como o agente de 
   grafia — e **Flavio Rosato** (saída em 24/08/2026). Os três são regra **"total"**: nunca
   marcar, em período nenhum, nem nos meses em que trabalharam. O Flavio era "corte" até
   **01/09/2026**, quando o usuário mudou a regra dele; rodadas antigas saíram com ele.
+  Também são **"total"**, desde **01/10/2026**: **Carla Seghessi** (saída em 23/09/2026) e
+  **Yasmin Rodrigues** (saída em 25/09/2026), ambas da equipe do Diesley.
   — e também **Katariny de Simone** (saída em **04/09/2026**), que é regra **"corte"**, NAO
   "total": **não marcar** em período que comece depois de 04/09/2026, mas **marcar normalmente**
   em período que inclua dias até essa data (agosto/2026, por exemplo). ⚠️ O login dela no Gestta

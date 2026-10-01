@@ -896,9 +896,14 @@ EQUIPES = {
         # Em periodos ANTERIORES a contratacao os dois viram esse mesmo aviso, e isso e esperado:
         # nao existe regra de ADMISSAO no codigo (o espelho do fora_por_corte() para quem entra),
         # so a de desligamento. Se o aviso incomodar em rodadas retroativas, ai sim vale criar.
+        #
+        # CARLA SEGHESSI (saida 23/09/2026) e YASMIN RODRIGUES (saida 25/09/2026) sairam do
+        # escritorio — decisao do usuario em 01/10/2026, regra "total" (ver DESLIGADOS). Tiradas
+        # daqui pelo mesmo motivo da Graziela e do Flavio: quem e "total" e continua declarado
+        # vira AVISO de "declarada mas ausente da transcricao" em toda rodada.
         {"coordenador": "DIESLEY QUEIROZ", "departamento": "Fiscal/Contábil",
          "membros": ["STEPHANIE FERRAZ", "BIANCA ALVES", "JAIRO RAVASI", "MIGUEL MALAGUTTI",
-                     "YASMIN RODRIGUES", "CARLA SEGHESSI", "EDUARDA STEFANI", "JULIA MATHIAS",
+                     "EDUARDA STEFANI", "JULIA MATHIAS",
                      "NATÁLIA SANTOS", "SOPHIA MAGRI", "BEATRIZ PAPA", "EDUARDA ZUCCHI",
                      "ALEXANDER MICHEL GARCIA", "KAMILLY VITÓRIA"]},
         # EQUIPE DA LAYSA (Suporte/Atendimento) — ENCERRADA em 17/09/2026, a pedido do usuário.
@@ -967,6 +972,8 @@ EQUIPES = {
 #   "total" - sai de TODA avaliacao, inclusive de periodos em que ainda tinha atendimento.
 #             Foi a decisao do usuario para a Graziele Anselmo, a Graziela dos Anjos e,
 #             desde 01/09/2026, tambem para o FLAVIO ROSATO (antes ele era "corte").
+#             Em 01/10/2026 entraram CARLA SEGHESSI e YASMIN RODRIGUES (equipe do Diesley),
+#             tambem "total", a pedido do usuario.
 #
 #   "corte" - o que ela(e) fez ATE a data de saida continua valendo e deve ser avaliado
 #             normalmente; so nao entra em periodos que COMECAM depois da saida. Quem e
@@ -988,6 +995,8 @@ DESLIGADOS = {
     "GRAZIELA DOS ANJOS": {"saida": "24/08/2026", "regra": "total"},
     "FLAVIO ROSATO":      {"saida": "24/08/2026", "regra": "total"},
     "KATARINY DE SIMONE": {"saida": "04/09/2026", "regra": "corte"},
+    "CARLA SEGHESSI":     {"saida": "23/09/2026", "regra": "total"},
+    "YASMIN RODRIGUES":   {"saida": "25/09/2026", "regra": "total"},
 }
 
 

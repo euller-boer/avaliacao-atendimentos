@@ -397,7 +397,7 @@ coordenadores que os pacotes vão. Vale para **mensal e acompanhamento** (semana
 |---|---|---|
 | Thaina de Ponti | Departamento Pessoal e Onboarding | Eduarda Borges, **Laysa Malagutti** (entra aqui como *Onboarding*) |
 | Euller Boer | Departamento Pessoal e Operações | Jenifer Garcia, Gabriela Rossi, **Gilmar Soares** (contratado, entra em 19/09/2026, como *Operações*) |
-| Diesley Queiroz | Fiscal/Contábil | Stephanie Ferraz, Bianca Alves, Jairo Ravasi, Miguel Malagutti, Yasmin Rodrigues, Carla Seghessi, Eduarda Stefani, Julia Mathias, Natália Santos, Sophia Magri, Beatriz Papa, Eduarda Zucchi, **Alexander Michel Garcia**, **Kamilly Vitoria** (contratados, entram em 12/09/2026) |
+| Diesley Queiroz | Fiscal/Contábil | Stephanie Ferraz, Bianca Alves, Jairo Ravasi, Miguel Malagutti, Eduarda Stefani, Julia Mathias, Natália Santos, Sophia Magri, Beatriz Papa, Eduarda Zucchi, **Alexander Michel Garcia**, **Kamilly Vitoria** (contratados, entram em 12/09/2026). Carla Seghessi e Yasmin Rodrigues saíram (desligadas, regra "total", 01/10/2026) |
 | Lucas Malagutti (diretor) | Legal | Ricardo Buzeto **+ o consolidado da unidade inteira** |
 
 > A equipe **Suporte/Atendimento (Laysa Malagutti)** saiu desta tabela: foi **encerrada em
@@ -445,12 +445,19 @@ coordenadores que os pacotes vão. Vale para **mensal e acompanhamento** (semana
 > relatório dele e a média da unidade o incluía). Refazer um período antigo hoje dá números
 > diferentes — isso é esperado, não é defeito.
 >
-> Na prática: `DESLIGADOS` guarda `{"saida": ..., "regra": ...}`. Graziele, Graziela e Flavio são
+> Na prática: `DESLIGADOS` guarda `{"saida": ..., "regra": ...}`. Graziele, Graziela, Flavio,
+> Carla Seghessi e Yasmin Rodrigues são
 > `"total"`; a **Katariny de Simone é `"corte"`** desde 17/09/2026 (ver bloco abaixo) — a regra
 > `"corte"` e a função `fora_por_corte()` voltaram a ter uso.
 >
 > Com a saída dele a equipe da Laysa ficou só com a Katariny — e foi **encerrada em 17/09/2026**,
 > quando ela também saiu.
+
+> **Carla Seghessi (saída 23/09/2026) e Yasmin Rodrigues (saída 25/09/2026)** saíram do
+> escritório — regra **"total"**, decisão do usuário em **01/10/2026**. Não entram em avaliação
+> nenhuma, nem nos meses em que trabalharam, nem no consolidado da unidade. Foram **retiradas de
+> `EQUIPES`** (equipe do Diesley, que ficou com 13 pessoas além do coordenador). Pacotes já
+> entregues saíram **com** elas; refazer um período antigo hoje dá números diferentes — esperado.
 
 > **Katariny de Simone saiu do escritório em 04/09/2026 — regra "corte"** (decisão do usuário em
 > 17/09/2026). **Não é igual à Graziela e ao Flavio:**
