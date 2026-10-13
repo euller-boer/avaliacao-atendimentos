@@ -393,7 +393,7 @@ coordenadores que os pacotes vão. Vale para **mensal e acompanhamento** (semana
 
 | Coordenador | Departamento | Equipe |
 |---|---|---|
-| Thaina de Ponti | Departamento Pessoal e Onboarding | Eduarda Borges, **Laysa Malagutti** (entra aqui como *Onboarding*), **Camile Bianchi** (contratada em 05/10/2026, triagem; cadastrada em 13/10/2026 — setor não informado, fica fora de `depto_membro`) |
+| Thaina de Ponti | Departamento Pessoal e Onboarding | Eduarda Borges, **Laysa Malagutti** (entra aqui como *Onboarding*), **Camile Bianchi** (contratada em 05/10/2026, triagem; cadastrada em 13/10/2026 — entra aqui como *Atendimento*) |
 | Euller Boer | Departamento Pessoal e Operações | Jenifer Garcia, Gabriela Rossi, **Gilmar Soares** (contratado, entra em 19/09/2026, como *Operações*) |
 | Diesley Queiroz | Fiscal/Contábil | Stephanie Ferraz, Bianca Alves, Jairo Ravasi, Miguel Malagutti, Eduarda Stefani, Julia Mathias, Natália Santos, Sophia Magri, Beatriz Papa, Eduarda Zucchi, **Alexander Michel Garcia**, **Kamilly Vitoria** (contratados, entram em 12/09/2026). Carla Seghessi e Yasmin Rodrigues saíram (desligadas, regra "total", 01/10/2026) |
 | Lucas Malagutti (diretor) | Legal | Ricardo Buzeto **+ o consolidado da unidade inteira** |

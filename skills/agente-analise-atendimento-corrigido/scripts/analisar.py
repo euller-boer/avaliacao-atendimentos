@@ -868,10 +868,10 @@ EQUIPES = {
         #
         # CAMILE BIANCHI entra aqui em 13/10/2026 (usuario): contratada em 05/10/2026, faz a
         # TRIAGEM (esta em PAPEL_TRIAGEM). Grafia conferida contra o Gestta — ver PAPEL_TRIAGEM.
-        # NAO esta em `depto_membro` de proposito: o setor dela NAO foi informado (a Laysa, que
-        # tambem e triagem, entra aqui como "Onboarding", mas isso nao se estende a ela por
-        # deducao). Fora do dict ela so nao aparece na linha "Departamentos da equipe" do resumo;
-        # nota e relatorio saem normalmente. O rotulo da equipe tambem ficou como estava.
+        # Setor: ATENDIMENTO — informado pelo usuario em 13/10/2026 (no mesmo dia do cadastro ela
+        # ficou algumas horas fora de `depto_membro`, porque o setor ainda nao tinha sido dito).
+        # O rotulo da equipe NAO foi mudado: "Departamento Pessoal e Onboarding" foi escolhido
+        # pelo usuario em 07/09/2026 e incluir "Atendimento" nele e decisao dele, nao deducao.
         # Em rodada RETROATIVA (antes de 05/10/2026) ela vira o aviso de "declarada mas ausente
         # na transcricao" — esperado, igual ao Gilmar e a Kamilly; nao quebra nada.
         {"coordenador": "THAINA DE PONTI",
@@ -879,7 +879,8 @@ EQUIPES = {
          "membros": ["EDUARDA BORGES", "LAYSA MALAGUTTI", "CAMILE BIANCHI"],
          "depto_membro": {"THAINA DE PONTI": "Departamento Pessoal",
                           "EDUARDA BORGES": "Departamento Pessoal",
-                          "LAYSA MALAGUTTI": "Onboarding"}},
+                          "LAYSA MALAGUTTI": "Onboarding",
+                          "CAMILE BIANCHI": "Atendimento"}},
         # GILMAR SOARES entra aqui em 19/09/2026: colaborador CONTRATADO (nao e troca de
         # equipe, ninguem sai de lista nenhuma), do setor de OPERACOES — um departamento que
         # nao existia no sistema ate hoje. Por ser de setor diferente do da equipe, esta
