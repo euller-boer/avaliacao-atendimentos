@@ -453,7 +453,19 @@ def parse(lines, tot_map):
 # as INSTRUÇÕES dela ("depois direcionar para X") na regra 3.1, porque essa regra só lê carimbo
 # de quem está na transcrição. São 5 casos em todo o mês de agosto (1 para cada: Beatriz Papa,
 # Carla Seghessi, Jairo Ravasi, Natália Santos, Stephanie Ferraz) — medido em 17/09/2026.
-PAPEL_TRIAGEM = {"LAYSA MALAGUTTI", "ANA CHUECO", "KATARINY DE SIMONE"}
+# CAMILE BIANCHI incluída em 13/10/2026 (usuário): entrou no escritório em 05/10/2026 JÁ na
+# triagem de Monte Alto, equipe da Thaina. Vai neste set (sem data) e NÃO em
+# PAPEL_TRIAGEM_DESDE porque não MUDOU de função: desde que entrou faz triagem, então não existe
+# período anterior em que ela fosse colaboradora comum. Se um dia ela sair da triagem e
+# continuar no escritório, aí sim tirar daqui e passar para PAPEL_TRIAGEM_DESDE com janela
+# fechada ("05/10/2026", "<último dia>").
+# GRAFIA CONFERIDA no Gestta em 13/10/2026: "Camile Bianchi" é o nome de atendente nos carimbos
+# "Atendimento transferido por Camile Bianchi para ..." de 07 e 08/10/2026 (transcrição de
+# Taquaritinga 05-10 a 09-10/2026). O nome completo é "Camile Vitória Bianchi" (aparece assim
+# em setembro, quando ela era CONTATO, no processo de entrevista), mas o Gestta usa só
+# "Camile Bianchi" — e é esse que tem de estar aqui, senão a régua não pega e o erro passa
+# silencioso (mesmo caso da Jenifer em PAPEL_TRIAGEM_DESDE).
+PAPEL_TRIAGEM = {"LAYSA MALAGUTTI", "ANA CHUECO", "KATARINY DE SIMONE", "CAMILE BIANCHI"}
 
 # TRIAGEM COM DATA DE INICIO (usuário, 19/09/2026) — quem passou a fazer triagem NO MEIO da
 # vida do sistema, e portanto NÃO pode ser medido por essa régua nos períodos anteriores.
@@ -853,9 +865,18 @@ EQUIPES = {
         # ATENCAO: este "Onboarding" nao e o mesmo do antigo "Departamento Pessoal/Onboarding",
         # que existia de 11/08 a 24/08/2026 por causa da Eduarda ("Duda") Zucchi. Ela nao esta
         # nesta equipe desde 24/08/2026 (hoje esta na do Diesley).
+        #
+        # CAMILE BIANCHI entra aqui em 13/10/2026 (usuario): contratada em 05/10/2026, faz a
+        # TRIAGEM (esta em PAPEL_TRIAGEM). Grafia conferida contra o Gestta — ver PAPEL_TRIAGEM.
+        # NAO esta em `depto_membro` de proposito: o setor dela NAO foi informado (a Laysa, que
+        # tambem e triagem, entra aqui como "Onboarding", mas isso nao se estende a ela por
+        # deducao). Fora do dict ela so nao aparece na linha "Departamentos da equipe" do resumo;
+        # nota e relatorio saem normalmente. O rotulo da equipe tambem ficou como estava.
+        # Em rodada RETROATIVA (antes de 05/10/2026) ela vira o aviso de "declarada mas ausente
+        # na transcricao" — esperado, igual ao Gilmar e a Kamilly; nao quebra nada.
         {"coordenador": "THAINA DE PONTI",
          "departamento": "Departamento Pessoal e Onboarding",
-         "membros": ["EDUARDA BORGES", "LAYSA MALAGUTTI"],
+         "membros": ["EDUARDA BORGES", "LAYSA MALAGUTTI", "CAMILE BIANCHI"],
          "depto_membro": {"THAINA DE PONTI": "Departamento Pessoal",
                           "EDUARDA BORGES": "Departamento Pessoal",
                           "LAYSA MALAGUTTI": "Onboarding"}},

@@ -154,8 +154,10 @@ e certo**, ou seja, se o colega que recebeu não precisou corrigir a rota (repas
 logo em seguida.
 
 - Constante `PAPEL_TRIAGEM` em `scripts/analisar.py` — hoje `"LAYSA MALAGUTTI"` (Monte Alto),
-  `"ANA CHUECO"` (Taquaritinga, incluída em 10/08/2026) e `"KATARINY DE SIMONE"` (Monte Alto,
-  incluída em 15/08/2026). Adicionar o nome (MAIÚSCULO, igual ao bloco de integridade) aqui
+  `"ANA CHUECO"` (Taquaritinga, incluída em 10/08/2026), `"KATARINY DE SIMONE"` (Monte Alto,
+  incluída em 15/08/2026) e `"CAMILE BIANCHI"` (Monte Alto, incluída em 13/10/2026 — contratada
+  em 05/10/2026 já na triagem, por isso vai neste set sem data e não em `PAPEL_TRIAGEM_DESDE`;
+  grafia conferida contra os carimbos do Gestta de 07 e 08/10/2026). Adicionar o nome (MAIÚSCULO, igual ao bloco de integridade) aqui
   quando outro colaborador tiver essa função — **decisão da coordenação, não decidir sozinho**.
   ⚠️ Esta lista **não tem data**: o nome posto aqui vale para toda rodada, inclusive retroativa.
   Quem **passou** a fazer triagem no meio do caminho — ou **deixou** a função depois — vai em
@@ -391,7 +393,7 @@ coordenadores que os pacotes vão. Vale para **mensal e acompanhamento** (semana
 
 | Coordenador | Departamento | Equipe |
 |---|---|---|
-| Thaina de Ponti | Departamento Pessoal e Onboarding | Eduarda Borges, **Laysa Malagutti** (entra aqui como *Onboarding*) |
+| Thaina de Ponti | Departamento Pessoal e Onboarding | Eduarda Borges, **Laysa Malagutti** (entra aqui como *Onboarding*), **Camile Bianchi** (contratada em 05/10/2026, triagem; cadastrada em 13/10/2026 — setor não informado, fica fora de `depto_membro`) |
 | Euller Boer | Departamento Pessoal e Operações | Jenifer Garcia, Gabriela Rossi, **Gilmar Soares** (contratado, entra em 19/09/2026, como *Operações*) |
 | Diesley Queiroz | Fiscal/Contábil | Stephanie Ferraz, Bianca Alves, Jairo Ravasi, Miguel Malagutti, Eduarda Stefani, Julia Mathias, Natália Santos, Sophia Magri, Beatriz Papa, Eduarda Zucchi, **Alexander Michel Garcia**, **Kamilly Vitoria** (contratados, entram em 12/09/2026). Carla Seghessi e Yasmin Rodrigues saíram (desligadas, regra "total", 01/10/2026) |
 | Lucas Malagutti (diretor) | Legal | Ricardo Buzeto **+ o consolidado da unidade inteira** |
@@ -565,7 +567,8 @@ coordenadores que os pacotes vão. Vale para **mensal e acompanhamento** (semana
 Regras decididas junto com a divisão:
 
 - **O coordenador é avaliado e a nota dele sai na lista da própria equipe** — o documento da
-  equipe da Thaina traz Thaina, Eduarda Borges e (desde 07/09/2026) Laysa Malagutti.
+  equipe da Thaina traz Thaina, Eduarda Borges, (desde 07/09/2026) Laysa Malagutti e (desde
+  13/10/2026) Camile Bianchi.
 - **Média geral, ranking e médias por critério continuam da UNIDADE INTEIRA.** Só a LISTA de
   pessoas é recortada. A coluna "#" mostra a posição no ranking de Monte Alto (ex.: "21º"), com
   uma linha explicando isso logo acima da tabela — senão o coordenador leria como colocação
