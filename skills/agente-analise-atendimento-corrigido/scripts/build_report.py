@@ -136,15 +136,20 @@ def build(data, out_path):
         if criterios:
             rows = []
             for c in criterios:
+                # ✓ a partir de 9 (mesmo corte do "Boa prática" das caixas), ✗ abaixo de 8,
+                # nada entre 8 e 9 — decisão do usuário em 01/10/2026: um 8,5 não é falha.
+                # Critério "Não avaliado" (sem nota) fica sem marca.
+                n = T.parse_nota(c.get("nota"))
+                mk = "" if n is None else " ✓" if n >= 9 else " ✗" if n < 8 else ""
                 rows.append([
                     c.get("nome", ""),
                     T.peso_pct(c.get("nome", ""), c.get("peso")),
-                    str(c.get("nota", "")),
+                    str(c.get("nota", "")) + mk,
                     c.get("justificativa", "") or "—",
                 ])
             tbl = T.make_table(
                 doc, ["Critério", "Peso", "Nota", "Justificativa"], rows,
-                widths=[Cm(4.0), Cm(1.6), Cm(1.6), Cm(9.3)],
+                widths=[Cm(4.0), Cm(1.6), Cm(2.0), Cm(8.9)],
                 aligns=[WD_ALIGN_PARAGRAPH.LEFT, WD_ALIGN_PARAGRAPH.CENTER,
                         WD_ALIGN_PARAGRAPH.CENTER, WD_ALIGN_PARAGRAPH.LEFT])
             T.add_total_row(tbl, "NOTA FINAL PONDERADA (9 critérios)", str(nota_final))
@@ -179,8 +184,8 @@ def build(data, out_path):
                 termos = e.get("termos")
                 pre = f"{cab} — " if cab else ""
                 suf = f"  [{termos}]" if termos else ""
-                # `marca` (✓/✗) so existe no criterio 1, a unica caixa que mistura
-                # acerto e erro; docx_theme._emit_inline colore verde/vermelho.
+                # `marca` (✓/✗) vem do analisar.py em todos os criterios desde
+                # 01/10/2026; docx_theme._emit_inline colore verde/vermelho.
                 linhas.append(f"{e.get('marca','')}{pre}“{trecho}”{suf}")
             if linhas:
                 rotulo = ("Exemplos (cliente · data · hora):"

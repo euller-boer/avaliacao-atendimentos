@@ -496,6 +496,10 @@ PAPEL_TRIAGEM = {"LAYSA MALAGUTTI", "ANA CHUECO", "KATARINY DE SIMONE"}
 #   - regras 3.1 e 3.3 (perdão dos COLEGAS): ali existe a data E HORA exatas do carimbo, então
 #     a vigência é conferida carimbo a carimbo. Um chamado que ela entregou na MANHÃ de 04/09
 #     não conta como "veio da triagem"; um da TARDE do mesmo dia conta.
+# ⚠️ ATUALIZAÇÃO 01/10/2026: o "critério 6 DELA" descrito acima (uma base e um texto, depois a
+# trava de 1/3) foi SUBSTITUÍDO pela divisão por janela — cada atendimento vai pela régua da
+# função exercida no dia, e a nota é a média ponderada das duas partes. Ver "CRITERIO 6
+# DIVIDIDO POR JANELA" em analisar_colab. As regras 3.1/3.3 continuam como descrito.
 # Extensão: para outra pessoa que MUDAR de função, acrescentar aqui com a data — "DD/MM/AAAA"
 # ou "DD/MM/AAAA HH:MM" quando a virada tiver hora conhecida (sem hora, vale desde 00:00).
 # Para quem sempre fez triagem, continuar usando o set PAPEL_TRIAGEM acima.
@@ -568,8 +572,8 @@ def eh_triagem(nome, quando=None):
     Quem está em PAPEL_TRIAGEM_DESDE só vale DENTRO da janela de vigência — e, sem data
     informada, NÃO vale (conservador de propósito: é melhor não aplicar a régua especial do que
     aplicá-la a um período em que a pessoa não tinha a função).
-    Para o critério 6, que é agregado do período e não tem data por atendimento, usar
-    eh_triagem_periodo().
+    Desde 01/10/2026 o critério 6 também usa esta função, atendimento a atendimento (data do
+    repasse ou da 1a mensagem própria) — ver "CRITERIO 6 DIVIDIDO POR JANELA".
     """
     nm = (nome or "").strip().upper()
     if nm in PAPEL_TRIAGEM:
@@ -583,6 +587,11 @@ def eh_triagem(nome, quando=None):
 
 # COBERTURA MINIMA (usuário, 26/09/2026) — fração dos DIAS ÚTEIS do período que a janela de
 # triagem precisa cobrir para o critério 6 sair pela régua de triagem. Ver eh_triagem_periodo.
+# ⚠️ DESDE 01/10/2026 O CRITÉRIO 6 NÃO USA MAIS ESTA TRAVA: foi substituída pela divisão por
+# janela em analisar_colab (procure "CRITERIO 6 DIVIDIDO POR JANELA"). A trava protegia contra
+# dar a régua de triagem nos dias comuns, mas na mensal de 09/2026 fez o contrário com a Jenifer
+# Garcia: mandou os 231 repasses da triagem para a régua comum (critério 6 = 6,0). A função
+# fica aqui só como referência histórica; nada mais a chama.
 TRIAGEM_COBERTURA_MIN = (1, 3)   # (numerador, denominador) = um terço
 
 
@@ -1103,6 +1112,10 @@ def escanear_transferencias_saida(lines, tot_map, ids_fora=None):
     pat_mencao = re.compile(r"@\s*(?:" + "|".join(re.escape(n) for n in nomes) + r")", re.I)
     cur_id = None
     ids = {n: set() for n in tot_map}
+    # (data do 1o repasse CONTADO, data da 1a mensagem do atendimento) — usadas pelo criterio 6
+    # dividido por janela de triagem (ver "CRITERIO 6 DIVIDIDO POR JANELA" em analisar_colab).
+    ids_dt = {n: {} for n in tot_map}
+    inicio_at = {}   # id -> data da 1a mensagem do atendimento (quando o chamado chegou)
     exemplos = {n: [] for n in tot_map}
     perdoados = {n: [] for n in tot_map}   # regra 3.1 — repasse instruido pela triagem
     delegados = {n: [] for n in tot_map}   # regra 3.2 — delegacao de tarefa interna
@@ -1149,6 +1162,7 @@ def escanear_transferencias_saida(lines, tot_map, ids_fora=None):
         corpo = mm.group(6) or ""
         autor = (mm.group(4) or "").strip()
         dt_msg = datetime.strptime(mm.group(1) + " " + mm.group(2), "%d/%m/%Y %H:%M:%S")
+        inicio_at.setdefault(cur_id, dt_msg)
         if CARIMBO_TRANSF.search(corpo):
             # carimbo de transferencia: nunca e "nota escrita pela pessoa"
             m2 = pat.search(corpo)
@@ -1289,6 +1303,7 @@ def escanear_transferencias_saida(lines, tot_map, ids_fora=None):
         notas_por_atendimento.setdefault(aid, []).append((dt, nome_de, destino))
         if aid not in ids[nome_de]:
             ids[nome_de].add(aid)
+            ids_dt[nome_de][aid] = (dt, inicio_at.get(aid))
             # Guardamos ate 30 candidatos (nao 3) porque a escolha dos 3 exemplos que
             # vao para o relatorio e feita depois, em analisar_colab, priorizando os
             # repasses para OUTRA pessoa. Achado real de agosto/2026 (Ana Chueco): os
@@ -1308,11 +1323,12 @@ def escanear_transferencias_saida(lines, tot_map, ids_fora=None):
             dt_prox = notas[i + 1][0]
             if (dt_prox - dt_i).total_seconds() / 60 <= TRIAGEM_JANELA_REBOTE_MIN:
                 rebotes[nome_de].add(aid)
-    return ids, exemplos, rebotes, perdoados, delegados, chegaram_errado
+    return ids, exemplos, rebotes, perdoados, delegados, chegaram_errado, ids_dt
 
 # ---------------------------------------------------------------- análise
-def analisar_colab(nm, ats, hdr, transf_saida_ids=None, transf_saida_ex=None, transf_saida_rebote=None, transf_perdoados=None, transf_delegados=None, transf_errados=None):
+def analisar_colab(nm, ats, hdr, transf_saida_ids=None, transf_saida_ex=None, transf_saida_rebote=None, transf_perdoados=None, transf_delegados=None, transf_errados=None, transf_saida_dt=None):
     transf_saida_ids = transf_saida_ids or set()
+    transf_saida_dt = transf_saida_dt or {}
     transf_saida_ex = transf_saida_ex or []
     transf_saida_rebote = transf_saida_rebote or set()
     transf_perdoados = transf_perdoados or []
@@ -1324,6 +1340,8 @@ def analisar_colab(nm, ats, hdr, transf_saida_ids=None, transf_saida_ex=None, tr
              sla_consid=0, sla_dentro=0, tempos=[], vago_ex=None, neg_ex=None,
              giria_ex=[])
     ids_com_msg_propria = set()
+    msg_propria_dt = {}   # id -> data da 1a mensagem propria (criterio 6 dividido por janela)
+    ids_vago = set()      # atendimentos CONTADOS como termo vago no criterio 2 (marca ✗ dos exemplos)
     # exemplos reais por critério (índices 0..8) + candidatos do SLA (com tempo)
     EX = {i: [] for i in range(9)}
     sla_cand = []
@@ -1353,7 +1371,7 @@ def analisar_colab(nm, ats, hdr, transf_saida_ids=None, transf_saida_ex=None, tr
             # A mensagem perdoada pelo COMPROMISSO_RETORNO nao entra como exemplo de
             # termo vago — ela nao foi contada como vaga. Sai so na lista "Conferir".
             if len(EX[1]) < 3 and VAGO.search(tx) and not COMPROMISSO_RETORNO.search(tx):
-                EX[1].append(_ex(contato, m["dt"], tx, VAGO.search(tx).group(0)))
+                EX[1].append(dict(_ex(contato, m["dt"], tx, VAGO.search(tx).group(0)), _at=at["id"]))
             if len(EX[2]) < 3 and EMPATIA.search(tx):
                 EX[2].append(_ex(contato, m["dt"], tx))
             if len(EX[3]) < 3 and LEI.search(tx):
@@ -1400,6 +1418,7 @@ def analisar_colab(nm, ats, hdr, transf_saida_ids=None, transf_saida_ex=None, tr
         if not outs: continue
         Q["out_atts"] += 1
         ids_com_msg_propria.add(at["id"])
+        msg_propria_dt[at["id"]] = min(m["dt"] for m in outs)
         blob = "\n".join(m["texto"] for m in outs)
         # CRITERIO 2 — BASE (correcao 2.1, coordenacao 26/08/2026): a base e o numero
         # de ATENDIMENTOS que ficaram para depois, e nao "vago + prazo". Somar os dois
@@ -1426,6 +1445,7 @@ def analisar_colab(nm, ats, hdr, transf_saida_ids=None, transf_saida_ex=None, tr
                                       VAGO.search(perdao["texto"]).group(0)))
         elif tem_vago:
             Q["vago"] += 1
+            ids_vago.add(at["id"])
             if not Q["vago_ex"]: Q["vago_ex"] = (at["id"], VAGO.search(blob).group(0))
         if tem_prazo: Q["prazo"] += 1
         if EMPATIA.search(blob): Q["emp"] += 1
@@ -1567,10 +1587,84 @@ def analisar_colab(nm, ats, hdr, transf_saida_ids=None, transf_saida_ex=None, tr
     transf_real = len(transf_saida_ids)
     overlap6 = len(transf_saida_ids & ids_com_msg_propria)
 
-    # O criterio 6 e agregado do periodo inteiro, entao a vigencia de PAPEL_TRIAGEM_DESDE e
-    # conferida por SOBREPOSICAO entre o periodo avaliado e a janela em que a pessoa exerceu a
-    # funcao (ver eh_triagem_periodo). Quem esta no set PAPEL_TRIAGEM vale sempre.
-    if eh_triagem_periodo(nm, hdr.get("periodo_ini"), hdr.get("periodo_fim")):
+    # CRITERIO 6 DIVIDIDO POR JANELA (usuário, 01/10/2026) — substitui, para quem está em
+    # PAPEL_TRIAGEM_DESDE, a decisão de 19/09 ("uma base e um texto") e a trava de cobertura
+    # de 26/09 (eh_triagem_periodo).
+    # Por quê: na mensal de 09/2026 a Jenifer Garcia foi triagem só de 21 a 24/09 (19% dos dias
+    # úteis), a trava mandou o mês inteiro para a régua comum — e os 231 repasses que ela fez
+    # COMO TRIAGEM entraram como falta de resolutividade: critério 6 = 6,0 ("134 de 382, 35%").
+    # Fora da janela ela resolveu 127 de 139 sem repasse (91%). Medir o mês todo por uma régua
+    # só erra para um lado (pune a triagem) ou para o outro (dá 100% de graça nos dias comuns).
+    # Como fica: cada atendimento é classificado pela DATA — a do repasse, quando houve, senão
+    # a da 1a mensagem própria — com eh_triagem(nm, data), carimbo a carimbo. Os de dentro da
+    # janela vão pela régua de triagem, os de fora pela régua comum, e a nota do critério é a
+    # média das duas notas ponderada pelo tamanho de cada base. Se todos caem de um lado só,
+    # vale aquela régua inteira, como antes. Quem está no set PAPEL_TRIAGEM não muda nada.
+    def _nota6(p):
+        return 9.5 if p >= 95 else 9.0 if p >= 85 else 8.0 if p >= 70 else 7.0 if p >= 55 else 6.0
+
+    modo6 = "comum"
+    if nm.strip().upper() in PAPEL_TRIAGEM:
+        modo6 = "triagem"
+    elif _janela_triagem(nm) is not None:
+        # Repasse é da TRIAGEM se foi feito dentro da janela OU se o chamado CHEGOU dentro dela:
+        # a fila do último dia não some na virada. Achado real (01/10/2026): na manhã de 25/09,
+        # das 07:50 às 07:57, a Jenifer repassou 6 chamados que tinham chegado em 24/09 depois
+        # das 17h — fila da triagem dela, não trabalho de colaboradora comum.
+        # Atendimento sem repasse vai pela 1a mensagem própria.
+        def _na_triagem(a):
+            if a in transf_saida_dt:
+                dt_rep, dt_ini = transf_saida_dt[a]
+                return eh_triagem(nm, dt_rep) or eh_triagem(nm, dt_ini)
+            return eh_triagem(nm, msg_propria_dt.get(a))
+        ids6 = transf_saida_ids | ids_com_msg_propria
+        dentro6 = {a for a in ids6 if _na_triagem(a)}
+        if dentro6 and dentro6 == ids6:
+            modo6 = "triagem"
+        elif dentro6:
+            modo6 = "dividido"
+
+    if modo6 == "dividido":
+        j_ini, j_fim = _janela_triagem(nm)
+        jan_txt = ("de " + j_ini.strftime("%d/%m" + (" %Hh%M" if (j_ini.hour, j_ini.minute) != (0, 0) else ""))
+                   + (" a " + j_fim.strftime("%d/%m") if j_fim else " em diante"))
+        own_d, own_f = ids_com_msg_propria & dentro6, ids_com_msg_propria - dentro6
+        tr_d, tr_f = transf_saida_ids & dentro6, transf_saida_ids - dentro6
+        # parte de TRIAGEM — mesma conta do ramo de triagem abaixo
+        oa_d, transf_d = len(own_d), len(tr_d)
+        reb_d = len(tr_d & transf_saida_rebote)
+        base_d = oa_d + transf_d
+        acertos_d = base_d - reb_d
+        pd_d = acertos_d / base_d * 100
+        n_d = _nota6(pd_d)
+        # parte COMUM — mesma conta do ramo comum abaixo (sem mensagem própria = não avaliada)
+        oa_f, transf_f = len(own_f), len(tr_f)
+        base_f = oa_f + (transf_f - len(tr_f & own_f))
+        primeiro = nm.split()[0].capitalize()
+        if oa_f == 0:
+            n6, base6 = n_d, base_d
+            parte_f = (f"Fora da triagem não houve atendimento com mensagem própria de {primeiro}, então essa parte não foi avaliada "
+                       f"e a nota é a da triagem.")
+            just_f = "fora da triagem: não avaliado"
+        else:
+            pd_f = 100 - (transf_f / base_f * 100)
+            n_f = _nota6(pd_f)
+            base6 = base_d + base_f
+            n6 = round((n_d * base_d + n_f * base_f) / base6, 1)
+            parte_f = (f"Fora da triagem, na função comum, {base_f - transf_f} dos {base_f} atendimentos ({pf(pd_f)}) foram "
+                       f"conduzidos até a conclusão sem repasse; {transf_f} foram transferidos a outro colega/setor — nota {fmt(n_f)}. "
+                       f"A nota do critério é a média das duas partes, ponderada pelo número de atendimentos de cada uma: {fmt(n6)}.")
+            just_f = f"fora da triagem: {base_f - transf_f} de {base_f} sem repasse ({pf(pd_f)})"
+        notas[5] = n6
+        just[5] = (f"triagem ({jan_txt}): direcionamento correto em {acertos_d} de {base_d} ({pf(pd_d)}); {just_f}")
+        txt[5] = (f"{primeiro} exerceu a função de recebimento e direcionamento de chamados (triagem) {jan_txt}, por isso este critério foi medido "
+                  f"em duas partes, cada atendimento pela régua da função exercida naquele dia. Na triagem, repassar para o setor certo É a "
+                  f"função: dos {base_d} atendimentos ({oa_d} concluídos diretamente, {transf_d} direcionados a um colega), {reb_d} precisaram ser "
+                  f"corrigidos pelo colega que recebeu em até 24h — direcionamento correto em {pf(pd_d)}, nota {fmt(n_d)}. " + parte_f)
+        dest[5] = {"label": "Boa prática" if n6 >= 9 else "Atenção",
+                   "texto": ("Bom desempenho nas duas funções do período — direcionamento certo na triagem e resolutividade direta fora dela." if n6 >= 9
+                             else "Na parte fora da triagem, antes de transferir, esgotar o que pode ser resolvido na própria célula.")}
+    elif modo6 == "triagem":
         # Papel de TRIAGEM: repassar é a função, não uma falha. O critério mede se o
         # direcionamento foi certo (destino não precisou corrigir a rota em até 24h),
         # não "resolveu sem repassar".
@@ -1686,6 +1780,33 @@ def analisar_colab(nm, ats, hdr, transf_saida_ids=None, transf_saida_ex=None, tr
     else:
         criterios[8]["evidencias"] = [{"trecho": "Sem ocorrência de gíria/abreviação registrada no período.",
                                        "sem_ocorrencia": True}]
+
+    # MARCAS ✓/✗ EM TODOS OS EXEMPLOS (usuário, 01/10/2026). Antes so o criterio 1 tinha
+    # marca; nos demais a caixa era homogenea e o leitor tinha que deduzir se o exemplo
+    # era acerto ou falha. A marca diz o que o exemplo FEZ com a nota, nunca um palpite:
+    #   ✓ empatia (3), falha assumida com transparência (5)
+    #   ✗ termo vago (2), lei sem tradução (4), repasse na função comum (6),
+    #     negativa seca (8), gíria (9)
+    # Sem marca: Ética (7, so baseline), "sem ocorrência", e o criterio 6 de quem e/foi
+    # triagem — ali repassar e a funcao, e no modo dividido o exemplo pode ser da janela
+    # de triagem. Termo vago so leva ✗ se o atendimento foi CONTADO como vago: o perdao
+    # do "retorno ate amanha" e por atendimento, e uma mensagem vaga pode estar num
+    # atendimento perdoado por outra mensagem.
+    MARCA_EX = {1: "✗ ", 2: "✓ ", 3: "✗ ", 4: "✓ ", 7: "✗ ", 8: "✗ "}
+    if modo6 == "comum":
+        MARCA_EX[5] = "✗ "
+    for i, mk in MARCA_EX.items():
+        for e in criterios[i].get("evidencias") or []:
+            at_id = e.pop("_at", None)
+            if e.get("sem_ocorrencia") or e.get("marca"):
+                continue
+            if i == 1 and at_id not in ids_vago:
+                continue
+            if i == 5 and "puxado para si" in e.get("trecho", ""):
+                continue
+            e["marca"] = mk
+    for e in criterios[1].get("evidencias") or []:
+        e.pop("_at", None)
 
     fortes = sorted([i for i in range(9) if notas[i] is not None], key=lambda i: (-notas[i], i))[:2]
     fracos = sorted([i for i in range(9) if notas[i] is not None], key=lambda i: (notas[i], i))[:2]
@@ -1950,12 +2071,12 @@ def main():
                   f"(atendimento {a['id']}) nao entra na nota. Decisao registrada em "
                   f"CONTATOS_FORA; o atendimento continua na transcricao.")
 
-    transf_saida_ids, transf_saida_ex, transf_saida_rebote, transf_perdoados, transf_delegados, transf_errados = escanear_transferencias_saida(lines, hdr["tot_map"], ids_fora)
+    transf_saida_ids, transf_saida_ex, transf_saida_rebote, transf_perdoados, transf_delegados, transf_errados, transf_saida_dt = escanear_transferencias_saida(lines, hdr["tot_map"], ids_fora)
 
     acomp = hdr["periodo_tipo"] != "mes"
     team = []
     for nm in sorted(colabs, key=lambda s: s.lower()):
-        data, nf, crit_notas, ind = analisar_colab(nm, colabs[nm], hdr, transf_saida_ids.get(nm), transf_saida_ex.get(nm), transf_saida_rebote.get(nm), transf_perdoados.get(nm), transf_delegados.get(nm), transf_errados.get(nm))
+        data, nf, crit_notas, ind = analisar_colab(nm, colabs[nm], hdr, transf_saida_ids.get(nm), transf_saida_ex.get(nm), transf_saida_rebote.get(nm), transf_perdoados.get(nm), transf_delegados.get(nm), transf_errados.get(nm), transf_saida_dt.get(nm))
         safe = re.sub(r"[^A-Za-z0-9]+", "_", nm).strip("_")
         with open(os.path.join(outdir, f"analise_{safe}.json"), "w", encoding="utf-8") as f:
             json.dump(data, f, ensure_ascii=False, indent=1)

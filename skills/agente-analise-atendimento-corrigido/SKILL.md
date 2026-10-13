@@ -183,7 +183,8 @@ logo em seguida.
 Quem **mudou de função no meio do caminho** não entra no set `PAPEL_TRIAGEM` (que não tem data e
 valeria para toda rodada, inclusive retroativa), e sim no dicionário `PAPEL_TRIAGEM_DESDE`, com a
 data em que assumiu a triagem. A consulta é feita pelas funções `eh_triagem(nome, quando)` (carimbo
-a carimbo) e `eh_triagem_periodo(nome, ini, fim)` (critério 6, agregado do período).
+a carimbo — usada também, desde 01/10/2026, no critério 6, atendimento a atendimento; ver
+"Critério 6 dividido por janela" abaixo). `eh_triagem_periodo` ficou no código só como histórico.
 
 O valor aceita **duas formas** (o fim entrou em 26/09/2026):
 
@@ -219,53 +220,51 @@ Sem hora, o **início** vale desde 00:00 e o **fim** vale até **23:59:59** daqu
   Perfil dela como colaboradora comum (medido): agosto/2026 = 93 de 114 sem repasse (82%);
   07–11/09 = 31 de 33 (94%); 14–18/09 = 33 de 37 (89%) — ela quase não transfere.
 
-#### Cobertura mínima do período — `TRIAGEM_COBERTURA_MIN` (usuário, 26/09/2026)
+#### Critério 6 dividido por janela (usuário, 01/10/2026) — SUBSTITUI a trava de 1/3
 
-Para o critério 6 sair pela régua de triagem não basta **haver** sobreposição entre o período e a
-janela da função: a interseção precisa cobrir **pelo menos um terço dos DIAS ÚTEIS do período**.
+Para quem está em `PAPEL_TRIAGEM_DESDE`, o critério 6 **não é mais medido por uma régua só no
+período inteiro**. Cada atendimento é classificado pela função exercida **naquele dia**:
 
-**Por que entrou:** só a sobreposição bastava enquanto a única janela era a da Eduarda, que pegava
-quase metade do mês. Com a Jenifer — triagem em **4 dos 21 dias úteis** de setembro, **19%** — a
-sobreposição sozinha lhe daria a régua de triagem no **mês inteiro**; e como o rebote do critério 6
-quase nunca dispara, isso vira nota ~9,5 de graça em 17 dias úteis nos quais ela era colaboradora
-comum.
+- **repasse** → é da triagem se foi feito **dentro da janela** OU se o chamado **chegou** dentro
+  dela (a fila do último dia não some na virada: na manhã de 25/09, das 07:50 às 07:57, a Jenifer
+  repassou 6 chamados que tinham chegado em 24/09 depois das 17h);
+- **atendimento sem repasse** → pela data da 1ª mensagem própria.
 
-⚠️ **Os FERIADOS entram na conta** (`_dia_util`). Contar só dia de semana daria **50%** para a
-Eduarda em vez de **47,6%**, porque **07/09/2026 (Independência) caiu numa segunda dentro da janela
-dela** — um corte "na metade" a deixaria de fora por pouco. Foi por isso que o corte ficou em **um
-terço**: separa os dois casos com folga dos dois lados (Eduarda 47,6%, Jenifer 19,0%) e não deixa
-ninguém em cima da linha.
+Os de dentro vão pela **régua de triagem** (direcionamento correto, rebote em 24h); os de fora pela
+**régua comum** ("resolveu sem repassar"). A nota do critério é a **média das duas notas ponderada
+pelo tamanho de cada base**, e o texto do relatório mostra as duas partes. Se todos os atendimentos
+caem de um lado só, vale aquela régua inteira, como antes. A parte de fora sem mensagem própria fica
+"não avaliada" e vale só a da triagem. Quem está no set `PAPEL_TRIAGEM` (Laysa, Ana, Katariny) **não
+muda nada**.
 
-| Período | Eduarda | Jenifer |
+**Por que mudou:** a decisão de 19/09 ("uma base e um texto") com a trava de 1/3 dos dias úteis
+(26/09) errou feio na **mensal de 09/2026**: a Jenifer foi triagem em 4 de 21 dias úteis (19%), a
+trava mandou o mês todo para a régua comum, e os **231 repasses que ela fez COMO TRIAGEM** entraram
+como falta de resolutividade — critério 6 = **6,0** (*"134 de 382 sem repasse, 35%"*). E a Eduarda
+recebia *"890 de 890 — função de triagem"* inclusive nos dias 19–30/09, em que era colaboradora comum.
+
+**Resultado na mensal 09/2026 (Monte Alto), testado em 01/10/2026:**
+
+| | Antes | Depois |
 |---|---|---|
-| julho e agosto/2026 | não (0%) | não (0%) |
-| 31/08 a 04/09 | **não** (1/5 = 20%) | não (0%) |
-| 07 a 11/09 | sim (4/4 = 100%) | não (0%) |
-| 14 a 18/09 | sim (5/5 = 100%) | não (0%) |
-| 21 a 25/09 | não (0%) | **sim** (4/5 = 80%) |
-| 28/09 a 02/10 | não (0%) | não (0%) |
-| **mensal 09/2026** | **sim** (10/21 = 47,6%) | **não** (4/21 = 19,0%) |
+| Jenifer — critério 6 | 6,0 (134 de 382, 35%) | **9,3** (triagem 243/243 = 9,5; fora 127/139, 91% = 9,0) |
+| Jenifer — nota final | 8,1 | **8,8** |
+| Eduarda — critério 6 | 9,5 (890/890) | 9,5 (triagem 734/734; fora 149/156, 96%) |
+| Eduarda — nota final | 8,1 | 8,1 |
+| Média da unidade | 8,5 | 8,6 |
 
-✅ **Efeito colateral bom:** a trava **corrigiu sozinha** a distorção que estava documentada na
-semana **31/08 a 04/09**. Aquele período agora cobre só 20% e volta à régua comum — o critério 6 da
-Eduarda vai de *"76 de 76 (100%)"* de volta para *"59 de 76 sem repasse (78%)"*, que é exatamente o
-que o pacote **entregue na época** trazia. A ressalva "se um dia incomodar, a trava é exigir uma
-fração mínima" deixou de ser pendência: foi implementada.
-- **Como a vigência é conferida** (duas medidas, de propósito):
-  - **critério 6 dela** (`eh_triagem_periodo`): é agregado do período inteiro, não tem data por
-    atendimento. Vale a régua de triagem quando o período avaliado **se sobrepõe** à janela da
-    função **E** a interseção cobre pelo menos **um terço dos dias úteis** do período (ver
-    `TRIAGEM_COBERTURA_MIN`) — usa `periodo_ini` e `periodo_fim` do cabeçalho. Ver a tabela de
-    períodos medidos logo acima;
-  - **regras 3.1 e 3.2/3.3 (perdão dos colegas)**: ali existe a data **e hora** exatas do carimbo,
-    então a vigência é conferida **carimbo a carimbo** — chamado entregue por ela na **manhã** de
-    04/09 não conta como "veio da triagem"; um da **tarde** do mesmo dia conta.
-- ⚠️ **Decidido pelo usuário em 19/09/2026 e reconfirmado em 26/09/2026: NÃO separar, dentro do
-  mesmo período, os dias fora da vigência** — desde que a cobertura mínima seja atingida. Na
-  mensal de 09/2026 a **Eduarda** passa na trava (47,6%), então os dias 01 a 03/09 (antes de
-  assumir) e 19 a 30/09 (depois de sair) entram na régua de triagem junto com o resto do mês; o
-  critério 6 continua com **uma base e um texto só**. A **Jenifer** não passa (19,0%) e sai pela
-  régua comum no mês inteiro. Isso é de propósito, não é pendência.
+Os outros 20 relatórios ficaram **idênticos arquivo por arquivo**. Rodado também ANTES x DEPOIS em
+agosto mensal, 07–11/09 e 14–18/09: **idênticos**. Mudam se forem rerodados (pacotes já entregues
+NÃO foram regerados): 31/08–04/09 (Eduarda: de *"59 de 76 sem repasse"* para triagem 31/31 + fora
+42/45) e 21–25/09 (Jenifer: triagem 255/255 + fora 3/5; Eduarda: 2 atendimentos de antes de 18/09
+entram como triagem).
+
+- **Regras 3.1 e 3.2/3.3 (perdão dos colegas)** continuam como antes: a vigência é conferida
+  **carimbo a carimbo**, com data e hora — chamado entregue pela Eduarda na **manhã** de 04/09 não
+  conta como "veio da triagem"; um da **tarde** do mesmo dia conta.
+- Histórico (substituído em 01/10/2026): de 19/09 a 30/09 o critério 6 usava uma régua só no período
+  inteiro, escolhida por `eh_triagem_periodo` com a trava `TRIAGEM_COBERTURA_MIN` = 1/3 dos dias
+  úteis (feriados descontados). Os testes abaixo são dessa época.
 - **Testado em 19/09/2026** sobre as transcrições reais. Semana 07-09 a 11-09: muda **só** o
   relatório dela (critério 6 passou de "86 de 357 resolvidos sem repasse (24%)", que ainda entrava
   como ponto de melhoria, para "direcionamento correto em 357 de 357 (100%)" e destaque de boa
@@ -289,11 +288,8 @@ fração mínima" deixou de ser pendência: foi implementada.
   carimbos (18/09 e 20/09 = não; 21/09 00:00 e 07:30 = sim; 24/09 23:59 = sim; 25/09 e 28/09 = não)
   e a trava em 8 períodos (tabela acima). Conferido também que a grafia errada `JENIFFER GARCIA`
   devolve **False** — é o motivo do aviso sobre o nome canônico.
-- ⚠️ **Pendência aberta em 26/09/2026:** a Jenifer saiu da triagem em **24/09** e o usuário informou
-  que **outra pessoa assumiu**, mas o **nome ainda não foi passado**. Enquanto não for cadastrado,
-  a **sexta 25/09 em diante** fica sem ninguém marcado como triagem em Monte Alto — e os **colegas**
-  perdem o perdão das regras 3.1/3.3 ("o chamado veio da triagem") nesse período. Perguntar o nome
-  (e conferir a grafia no Gestta) **antes** de rodar qualquer período que alcance 25/09.
+- ✅ **Resolvido em 26/09/2026:** quem assumiu a triagem na sexta **25/09** foi a **Laysa
+  Malagutti**, que já está em `PAPEL_TRIAGEM` (sem data) — nada a cadastrar.
 
 ## Critério 8 — "Transformar o Não em Busca por Soluções" (revisão 07/08/2026)
 
