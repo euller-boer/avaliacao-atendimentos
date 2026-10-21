@@ -63,7 +63,11 @@ unidade e gera **um Resumo da Equipe próprio** — exatamente como o agente de 
   marcar, em período nenhum, nem nos meses em que trabalharam. O Flavio era "corte" até
   **01/09/2026**, quando o usuário mudou a regra dele; rodadas antigas saíram com ele.
   Também são **"total"**, desde **01/10/2026**: **Carla Seghessi** (saída em 23/09/2026) e
-  **Yasmin Rodrigues** (saída em 25/09/2026), ambas da equipe do Diesley.
+  **Yasmin Rodrigues** (saída em 25/09/2026), ambas da equipe do Diesley, e, desde
+  **21/10/2026**, **Sophia Magri** (saída em 15/10/2026), também da equipe do Diesley.
+  — **Jenifer Garcia** (saída em **15/10/2026**, equipe do Euller) é regra **"corte"**: não marcar
+  em período que comece depois de 15/10/2026, mas marcar normalmente em período que inclua dias
+  até essa data (a mensal de outubro/2026, por exemplo). Grafia: JENIFER, com UM "f".
   — e também **Katariny de Simone** (saída em **04/09/2026**), que é regra **"corte"**, NAO
   "total": **não marcar** em período que comece depois de 04/09/2026, mas **marcar normalmente**
   em período que inclua dias até essa data (agosto/2026, por exemplo). ⚠️ O login dela no Gestta

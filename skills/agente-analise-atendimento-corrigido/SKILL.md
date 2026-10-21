@@ -393,9 +393,9 @@ coordenadores que os pacotes vão. Vale para **mensal e acompanhamento** (semana
 
 | Coordenador | Departamento | Equipe |
 |---|---|---|
-| Thaina de Ponti | Departamento Pessoal e Onboarding | Eduarda Borges, **Laysa Malagutti** (entra aqui como *Onboarding*), **Camile Bianchi** (contratada em 05/10/2026, triagem; cadastrada em 13/10/2026 — entra aqui como *Atendimento*) |
-| Euller Boer | Departamento Pessoal e Operações | Jenifer Garcia, Gabriela Rossi, **Gilmar Soares** (contratado, entra em 19/09/2026, como *Operações*) |
-| Diesley Queiroz | Fiscal/Contábil | Stephanie Ferraz, Bianca Alves, Jairo Ravasi, Miguel Malagutti, Eduarda Stefani, Julia Mathias, Natália Santos, Sophia Magri, Beatriz Papa, Eduarda Zucchi, **Alexander Michel Garcia**, **Kamilly Vitoria** (contratados, entram em 12/09/2026). Carla Seghessi e Yasmin Rodrigues saíram (desligadas, regra "total", 01/10/2026) |
+| Thaina de Ponti | Departamento Pessoal e Onboarding | Eduarda Borges, **Laysa Malagutti** (entra aqui como *Onboarding*), **Camile Bianchi** (contratada em 05/10/2026, triagem; cadastrada em 13/10/2026 — entra aqui como *Atendimento*), **Daiane Lemes** (cadastrada em 21/10/2026 como *Departamento Pessoal*, colaboradora comum — não é triagem) |
+| Euller Boer | Departamento Pessoal e Operações | Jenifer Garcia (**saiu em 15/10/2026, regra "corte"** — continua declarada para sair nos períodos até a saída), Gabriela Rossi, **Gilmar Soares** (contratado, entra em 19/09/2026, como *Operações*) |
+| Diesley Queiroz | Fiscal/Contábil | Stephanie Ferraz, Bianca Alves, Jairo Ravasi, Miguel Malagutti, Eduarda Stefani, Julia Mathias, Natália Santos, Beatriz Papa, Eduarda Zucchi, **Alexander Michel Garcia**, **Kamilly Vitoria** (contratados, entram em 12/09/2026). Carla Seghessi e Yasmin Rodrigues saíram (desligadas, regra "total", 01/10/2026); Sophia Magri saiu em 15/10/2026 (regra "total", 21/10/2026) |
 | Lucas Malagutti (diretor) | Legal | Ricardo Buzeto **+ o consolidado da unidade inteira** |
 
 > A equipe **Suporte/Atendimento (Laysa Malagutti)** saiu desta tabela: foi **encerrada em
@@ -456,6 +456,17 @@ coordenadores que os pacotes vão. Vale para **mensal e acompanhamento** (semana
 > nenhuma, nem nos meses em que trabalharam, nem no consolidado da unidade. Foram **retiradas de
 > `EQUIPES`** (equipe do Diesley, que ficou com 13 pessoas além do coordenador). Pacotes já
 > entregues saíram **com** elas; refazer um período antigo hoje dá números diferentes — esperado.
+
+> **Jenifer Garcia e Sophia Magri saíram do escritório em 15/10/2026** (decisão do usuário em
+> **21/10/2026**), com regras DIFERENTES:
+>
+> - **Jenifer — "corte".** Continua declarada na equipe do Euller e em `PAPEL_TRIAGEM_DESDE`
+>   (janela 21–24/09/2026). É avaliada normalmente nos períodos que incluem dias até 15/10 (a
+>   mensal de 10/2026, a semana 12–16/10) e some dos períodos que começam depois disso.
+> - **Sophia — "total"** ("não fazia atendimentos"). Tirada de `EQUIPES`. Medido nas transcrições:
+>   3 atendimentos em 07/2026, 1 em 10–14/08 e 1 em 05–09/10/2026. Se algum desses períodos for
+>   refeito, sai sem ela, e na semana 05–09/10 o console avisa que ela "NAO deveria estar nesta
+>   transcricao" — esperado, a leitura foi feita antes da saída.
 
 > **Katariny de Simone saiu do escritório em 04/09/2026 — regra "corte"** (decisão do usuário em
 > 17/09/2026). **Não é igual à Graziela e ao Flavio:**

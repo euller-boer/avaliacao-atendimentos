@@ -85,11 +85,13 @@ Gestta com atendimentos no período:
 | Carla Seghessi | Monte Alto (equipe do Diesley) | 23/09/2026 | **Total** — nunca marcar, em período nenhum (decisão do usuário em 01/10/2026) |
 | Yasmin Rodrigues | Monte Alto (equipe do Diesley) | 25/09/2026 | **Total** — nunca marcar, em período nenhum (decisão do usuário em 01/10/2026) |
 | Katariny de Simone | Monte Alto (triagem, era da equipe da Laysa) | 04/09/2026 | **Corte** — não marcar em período que COMECE depois de 04/09/2026. Em período que inclua dias até 04/09 (agosto, por ex.) ela É marcada e avaliada normalmente |
+| Jenifer Garcia | Monte Alto (equipe do Euller) | 15/10/2026 | **Corte** — não marcar em período que COMECE depois de 15/10/2026. Em período que inclua dias até 15/10 (a mensal de 10/2026, a semana 12–16/10) ela É marcada e avaliada normalmente (decisão do usuário em 21/10/2026). Grafia: JENIFER, com UM "f" |
+| Sophia Magri | Monte Alto (equipe do Diesley) | 15/10/2026 | **Total** — nunca marcar, em período nenhum (decisão do usuário em 21/10/2026) |
 
 > **As duas regras não são a mesma coisa.** "Total" apaga a pessoa da avaliação mesmo onde ela
 > ainda tinha atendimento. "Corte" preserva o que a pessoa fez até sair, e só para de trazer o
-> nome em períodos que começam depois da saída. **Graziele, Graziela, Flavio, Carla Seghessi e Yasmin Rodrigues são "Total";
-> a Katariny de Simone é "Corte"** (decisão do usuário em 17/09/2026).
+> nome em períodos que começam depois da saída. **Graziele, Graziela, Flavio, Carla Seghessi, Yasmin Rodrigues e Sophia Magri são "Total";
+> a Katariny de Simone e a Jenifer Garcia são "Corte"** (decisões do usuário em 17/09/2026 e 21/10/2026).
 >
 > ⚠️ **Katariny — o que isso muda na prática.** Em rodada NOVA (período começando depois de
 > 04/09/2026) ela **não é marcada**, como os outros três. Mas em rodada de período que inclua

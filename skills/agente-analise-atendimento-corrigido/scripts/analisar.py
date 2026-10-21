@@ -874,13 +874,19 @@ EQUIPES = {
         # pelo usuario em 07/09/2026 e incluir "Atendimento" nele e decisao dele, nao deducao.
         # Em rodada RETROATIVA (antes de 05/10/2026) ela vira o aviso de "declarada mas ausente
         # na transcricao" — esperado, igual ao Gilmar e a Kamilly; nao quebra nada.
+        #
+        # DAIANE LEMES entra aqui em 21/10/2026 (usuario): DEPARTAMENTO PESSOAL, colaboradora
+        # comum (NAO e triagem — confirmado; fora de PAPEL_TRIAGEM). Apareceu pela 1a vez na
+        # semana 12-16/10/2026 (1 atendimento) e saiu so no consolidado da diretoria, como "sem
+        # equipe". Grafia "Daiane Lemes" conferida na transcricao dessa semana.
         {"coordenador": "THAINA DE PONTI",
          "departamento": "Departamento Pessoal e Onboarding",
-         "membros": ["EDUARDA BORGES", "LAYSA MALAGUTTI", "CAMILE BIANCHI"],
+         "membros": ["EDUARDA BORGES", "LAYSA MALAGUTTI", "CAMILE BIANCHI", "DAIANE LEMES"],
          "depto_membro": {"THAINA DE PONTI": "Departamento Pessoal",
                           "EDUARDA BORGES": "Departamento Pessoal",
                           "LAYSA MALAGUTTI": "Onboarding",
-                          "CAMILE BIANCHI": "Atendimento"}},
+                          "CAMILE BIANCHI": "Atendimento",
+                          "DAIANE LEMES": "Departamento Pessoal"}},
         # GILMAR SOARES entra aqui em 19/09/2026: colaborador CONTRATADO (nao e troca de
         # equipe, ninguem sai de lista nenhuma), do setor de OPERACOES — um departamento que
         # nao existia no sistema ate hoje. Por ser de setor diferente do da equipe, esta
@@ -898,6 +904,12 @@ EQUIPES = {
         # Se o Gestta trouxer nome diferente (sobrenome a mais, "Gilmar Soares da Silva"),
         # montar_equipes() nao casa, o relatorio dele NAO sai neste pacote e o console avisa.
         # A correcao e ajustar o nome AQUI, nunca na transcricao.
+        #
+        # JENIFER GARCIA saiu do escritorio em 15/10/2026 — regra "corte" (usuario, 21/10/2026;
+        # ver DESLIGADOS). FICA declarada aqui de proposito: quem e "corte" continua avaliada nos
+        # periodos que incluem dias ate a saida (a mensal de 10/2026, a semana 12-16/10), e sem o
+        # nome aqui o relatorio dela nao sairia neste pacote. Nas rodadas que comecam depois de
+        # 15/10 fora_por_corte() impede o aviso de "declarada mas ausente".
         {"coordenador": "EULLER BOER", "departamento": "Departamento Pessoal e Operações",
          "membros": ["JENIFER GARCIA", "GABRIELA ROSSI", "GILMAR SOARES"],
          "depto_membro": {"EULLER BOER": "Departamento Pessoal",
@@ -932,10 +944,13 @@ EQUIPES = {
         # escritorio — decisao do usuario em 01/10/2026, regra "total" (ver DESLIGADOS). Tiradas
         # daqui pelo mesmo motivo da Graziela e do Flavio: quem e "total" e continua declarado
         # vira AVISO de "declarada mas ausente da transcricao" em toda rodada.
+        #
+        # SOPHIA MAGRI saiu do escritorio em 15/10/2026 — regra "total" (usuario, 21/10/2026; ver
+        # DESLIGADOS). Tirada daqui pelo mesmo motivo da Carla e da Yasmin.
         {"coordenador": "DIESLEY QUEIROZ", "departamento": "Fiscal/Contábil",
          "membros": ["STEPHANIE FERRAZ", "BIANCA ALVES", "JAIRO RAVASI", "MIGUEL MALAGUTTI",
                      "EDUARDA STEFANI", "JULIA MATHIAS",
-                     "NATÁLIA SANTOS", "SOPHIA MAGRI", "BEATRIZ PAPA", "EDUARDA ZUCCHI",
+                     "NATÁLIA SANTOS", "BEATRIZ PAPA", "EDUARDA ZUCCHI",
                      "ALEXANDER MICHEL GARCIA", "KAMILLY VITÓRIA"]},
         # EQUIPE DA LAYSA (Suporte/Atendimento) — ENCERRADA em 17/09/2026, a pedido do usuário.
         #
@@ -1005,6 +1020,10 @@ EQUIPES = {
 #             desde 01/09/2026, tambem para o FLAVIO ROSATO (antes ele era "corte").
 #             Em 01/10/2026 entraram CARLA SEGHESSI e YASMIN RODRIGUES (equipe do Diesley),
 #             tambem "total", a pedido do usuario.
+#             Em 21/10/2026 entrou SOPHIA MAGRI (equipe do Diesley, saida 15/10/2026), "total"
+#             a pedido do usuario ("nao fazia atendimentos"). Medido nas transcricoes do Drive:
+#             ela tinha 3 atendimentos em 07/2026, 1 em 10-14/08 e 1 em 05-09/10/2026 — esses
+#             periodos, se refeitos, saem sem ela (pacotes entregues saíram com ela).
 #
 #   "corte" - o que ela(e) fez ATE a data de saida continua valendo e deve ser avaliado
 #             normalmente; so nao entra em periodos que COMECAM depois da saida. Quem e
@@ -1019,6 +1038,9 @@ EQUIPES = {
 #             console avisa. Para devolver o pacote da Laysa numa rodada antiga, e so
 #             descomentar o bloco da equipe dela em EQUIPES (esta logo acima, com a linha
 #             pronta). Ver tambem PAPEL_TRIAGEM: o nome dela FICA la de proposito.
+#             JENIFER GARCIA entrou nessa regra em 21/10/2026 (saida 15/10/2026), a pedido do
+#             usuario. Continua declarada na equipe do Euller e o nome FICA em
+#             PAPEL_TRIAGEM_DESDE (janela 21-24/09/2026), igual a Katariny em PAPEL_TRIAGEM.
 #
 # NAO apague o historico de quem e "corte" e NAO troque a regra sem o usuario mandar.
 DESLIGADOS = {
@@ -1028,6 +1050,8 @@ DESLIGADOS = {
     "KATARINY DE SIMONE": {"saida": "04/09/2026", "regra": "corte"},
     "CARLA SEGHESSI":     {"saida": "23/09/2026", "regra": "total"},
     "YASMIN RODRIGUES":   {"saida": "25/09/2026", "regra": "total"},
+    "JENIFER GARCIA":     {"saida": "15/10/2026", "regra": "corte"},
+    "SOPHIA MAGRI":       {"saida": "15/10/2026", "regra": "total"},
 }
 
 
