@@ -1,11 +1,29 @@
 # -*- coding: utf-8 -*-
 """Confere (sem copiar) se CLI e app desktop estao com os mesmos arquivos."""
-import os, hashlib
+import os, sys, glob, hashlib
 
-CLI = r"C:\Users\atend\.claude\skills"
-DESK = ("\\\\?\\C:\\Users\\atend\\AppData\\Local\\Packages\\Claude_pzs8sxrjxfjjc\\LocalCache"
-        "\\Roaming\\Claude\\local-agent-mode-sessions\\skills-plugin"
-        "\\29b22f3e-77c6-4955-8623-579c35f9ee6d\\e12d3bd3-a6b1-4d16-9b7e-6d878ed5e6ee\\skills")
+# Os caminhos eram fixos em C:\Users\atend ate 21/10/2026. Depois da formatacao o usuario do
+# Windows passou a ser outro e o app desktop gerou novos IDs de sessao no caminho - por isso
+# agora os dois lados sao descobertos na hora, em vez de escritos aqui.
+HOME = os.path.expanduser("~")
+CLI = os.path.join(HOME, ".claude", "skills")
+
+def achar_desktop():
+    # A busca vai sem o prefixo \\?\ (os.listdir em ...\Packages falha com ele - WinError 123);
+    # as pastas ate "skills" cabem no limite de 260. O prefixo entra so na leitura dos arquivos,
+    # porque scripts\analisar.py passa de 260 caracteres.
+    base = os.path.join(os.environ.get("LOCALAPPDATA", ""), "Packages")
+    achados = glob.glob(os.path.join(base, "Claude_*", "LocalCache", "Roaming", "Claude",
+                                     "local-agent-mode-sessions", "skills-plugin", "*", "*", "skills"))
+    achados = [p for p in achados if os.path.isdir(os.path.join(p, ALVOS[0][0]))] or achados
+    if not achados:
+        sys.exit("Pasta de skills do app desktop NAO encontrada - as skills ainda nao foram "
+                 "instaladas no app desktop do Claude (ou ele ainda nao abriu uma sessao).")
+    if len(achados) > 1:
+        print("AVISO: mais de uma pasta de skills no app desktop; usando a mais recente:")
+        for p in achados:
+            print("   ", p)
+    return "\\\\?\\" + max(achados, key=os.path.getmtime)
 
 ALVOS = [
     ("agente-analise-atendimento-corrigido", "scripts/analisar.py"),
@@ -25,6 +43,8 @@ def h(p):
     with open(p, "rb") as f:
         return hashlib.sha256(f.read()).hexdigest()[:16]
 
+DESK = achar_desktop()
+print(f"CLI....: {CLI}\nDESKTOP: {DESK[4:]}\n")
 print(f"{'arquivo':58} {'CLI':>17} {'DESKTOP':>17}  situacao")
 print("-" * 116)
 divergentes = []
