@@ -12,9 +12,13 @@ def achar_desktop():
     # A busca vai sem o prefixo \\?\ (os.listdir em ...\Packages falha com ele - WinError 123);
     # as pastas ate "skills" cabem no limite de 260. O prefixo entra so na leitura dos arquivos,
     # porque scripts\analisar.py passa de 260 caracteres.
-    base = os.path.join(os.environ.get("LOCALAPPDATA", ""), "Packages")
-    achados = glob.glob(os.path.join(base, "Claude_*", "LocalCache", "Roaming", "Claude",
-                                     "local-agent-mode-sessions", "skills-plugin", "*", "*", "skills"))
+    # Em 21/10/2026 o app desktop (versao 3.1623) ja nao gravava em Packages\...\Roaming\Claude,
+    # e sim em Claude-Data\claude_<id>\ - procura nos dois lugares.
+    local = os.environ.get("LOCALAPPDATA", "")
+    sessoes = ("local-agent-mode-sessions", "skills-plugin", "*", "*", "skills")
+    achados = (glob.glob(os.path.join(local, "Claude-Data", "claude_*", *sessoes)) +
+               glob.glob(os.path.join(local, "Packages", "Claude_*", "LocalCache", "Roaming",
+                                      "Claude", *sessoes)))
     achados = [p for p in achados if os.path.isdir(os.path.join(p, ALVOS[0][0]))] or achados
     if not achados:
         sys.exit("Pasta de skills do app desktop NAO encontrada - as skills ainda nao foram "
@@ -43,6 +47,20 @@ def h(p):
     with open(p, "rb") as f:
         return hashlib.sha256(f.read()).hexdigest()[:16]
 
+def so_cabecalho_reformatado(a, b):
+    # Desde 21/10/2026 o "Upload skill" do app desktop regrava o cabecalho do SKILL.md: a
+    # descricao vira uma linha so entre aspas (com "\n" no fim) e a lista "tools:" perde o recuo.
+    # O conteudo e o mesmo. Aqui: corpo (depois do 2o "---") tem que ser IGUAL byte a byte, e o
+    # cabecalho igual depois de tirar espacos, aspas, escapes e os marcadores ">" / "-".
+    ta = open(a, encoding="utf-8").read().replace("\r\n", "\n").split("---", 2)
+    tb = open(b, encoding="utf-8").read().replace("\r\n", "\n").split("---", 2)
+    if len(ta) < 3 or len(tb) < 3 or ta[2] != tb[2]:
+        return False
+    def norm(t):
+        t = t.replace("\\n", "").replace("\\", "")
+        return "".join(c for c in t if not c.isspace() and c not in "\"'>-")
+    return norm(ta[1]) == norm(tb[1])
+
 DESK = achar_desktop()
 print(f"CLI....: {CLI}\nDESKTOP: {DESK[4:]}\n")
 print(f"{'arquivo':58} {'CLI':>17} {'DESKTOP':>17}  situacao")
@@ -59,8 +77,12 @@ for skill, rel in ALVOS:
         print(f"{rotulo:58} {h(src):>17} {'(ausente)':>17}  SO NO CLI")
         continue
     a, b = h(src), h(dst)
-    ok = "IDENTICO" if a == b else "*** DIVERGENTE ***"
-    if a != b:
+    if a == b:
+        ok = "IDENTICO"
+    elif rel.endswith("SKILL.md") and so_cabecalho_reformatado(src, dst):
+        ok = "IDENTICO (cabecalho regravado pelo app)"
+    else:
+        ok = "*** DIVERGENTE ***"
         divergentes.append(rotulo)
     print(f"{rotulo:58} {a:>17} {b:>17}  {ok}")
 
