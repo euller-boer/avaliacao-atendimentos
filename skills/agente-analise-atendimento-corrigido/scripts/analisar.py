@@ -879,14 +879,25 @@ EQUIPES = {
         # comum (NAO e triagem — confirmado; fora de PAPEL_TRIAGEM). Apareceu pela 1a vez na
         # semana 12-16/10/2026 (1 atendimento) e saiu so no consolidado da diretoria, como "sem
         # equipe". Grafia "Daiane Lemes" conferida na transcricao dessa semana.
+        #
+        # JESSICA BARBOSA entra aqui em 14/11/2026 (usuario): substitui a DAIANE LEMES, mesmo
+        # setor (DEPARTAMENTO PESSOAL, colaboradora comum — NAO e triagem). Grafia "Jessica
+        # Barbosa" confirmada pelo usuario (ainda nao aparece em nenhuma transcricao). Em rodada
+        # anterior a entrada dela vira o aviso de "declarada mas ausente" — esperado.
+        # A DAIANE SAIU com regra "corte", mas a DATA DE SAIDA ainda nao foi informada: por isso
+        # ela continua declarada aqui e AINDA NAO esta em DESLIGADOS. Quando o usuario passar a
+        # data, incluir {"saida": "dd/mm/aaaa", "regra": "corte"} em DESLIGADOS (ela fica aqui,
+        # igual a Jenifer).
         {"coordenador": "THAINA DE PONTI",
          "departamento": "Departamento Pessoal e Onboarding",
-         "membros": ["EDUARDA BORGES", "LAYSA MALAGUTTI", "CAMILE BIANCHI", "DAIANE LEMES"],
+         "membros": ["EDUARDA BORGES", "LAYSA MALAGUTTI", "CAMILE BIANCHI", "DAIANE LEMES",
+                     "JESSICA BARBOSA"],
          "depto_membro": {"THAINA DE PONTI": "Departamento Pessoal",
                           "EDUARDA BORGES": "Departamento Pessoal",
                           "LAYSA MALAGUTTI": "Onboarding",
                           "CAMILE BIANCHI": "Atendimento",
-                          "DAIANE LEMES": "Departamento Pessoal"}},
+                          "DAIANE LEMES": "Departamento Pessoal",
+                          "JESSICA BARBOSA": "Departamento Pessoal"}},
         # GILMAR SOARES entra aqui em 19/09/2026: colaborador CONTRATADO (nao e troca de
         # equipe, ninguem sai de lista nenhuma), do setor de OPERACOES — um departamento que
         # nao existia no sistema ate hoje. Por ser de setor diferente do da equipe, esta
